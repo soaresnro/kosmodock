@@ -159,6 +159,16 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
 
 `probes` work with any widget type. The worst result colours the capsule's status dot. Commands run through `/bin/sh` with `PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:…`, so Homebrew tools resolve from the GUI app. Podman is looked up at `/opt/homebrew/bin`, `/usr/local/bin` and `/opt/podman/bin`, falling back to Docker when enabled.
 
+## Releasing
+
+`.github/workflows/release.yml` runs on every pull request: it runs the tests and the translation check, bundles the app, and attaches `Kosmodock-<version>.dmg`/`.zip` to the workflow run. Pushing a tag publishes a release:
+
+```sh
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+With the repository secrets `MACOS_DEVELOPER_ID_P12` (base64 `.p12` with a *Developer ID Application* certificate), `MACOS_DEVELOPER_ID_P12_PASSWORD`, `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_TEAM_ID` and `MACOS_NOTARY_PASSWORD` (an app-specific password), the app and disk image are signed with the hardened runtime, notarized and stapled. Without them the release is unsigned, and its notes explain how to open it.
+
 ## Languages
 
 The interface is available in **English (US)**, **Português (Brasil)** and **Español (España)**. Pick one in Settings → Behavior → Language, or set `"behavior": { "language": "pt-BR" }` (`system`, `en-US`, `pt-BR`, `es-ES`). The switch applies immediately to the dock, the popovers, the menus and Settings, including number formatting (`3,8 GB`). `system` follows macOS and falls back to English.
