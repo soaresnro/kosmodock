@@ -34,7 +34,11 @@ Git workflow:
 - The global credential helper is Git Credential Manager, so push with gh credentials per command: `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin <branch>`.
 - This repo's git `user.email` is set locally to the GitHub noreply address; keep it so personal email addresses stay out of the public history.
 - Licensed Apache-2.0 (`LICENSE`, `NOTICE`).
-- `.github/workflows/release.yml` tests and packages every PR; pushing a `v*` tag publishes a GitHub Release. It signs and notarizes only when the `MACOS_DEVELOPER_ID_*`/`MACOS_NOTARY_*` secrets exist. `bundle.sh` adds `--options runtime --timestamp` for Developer ID identities.
+- `.github/workflows/release.yml` tests and packages every PR; pushing a `v*` tag publishes a GitHub Release. Signing, first match wins:
+  - Developer ID plus notarization, when the `MACOS_DEVELOPER_ID_*`/`MACOS_NOTARY_*` secrets exist. `bundle.sh` adds `--options runtime --timestamp` for Developer ID identities.
+  - The self-signed "Kosmodock Release Signing" certificate (`MACOS_SELF_SIGNED_P12*`, created by `scripts/create-release-certificate.sh`). It keeps the Accessibility grant across updates.
+  - Otherwise ad-hoc.
+- `.github/release-signing-certificate.sha1` pins the release certificate, and the workflow fails when a build's designated requirement doesn't match it. Never replace the certificate casually: every user would have to grant Accessibility again. Rotation is `create-release-certificate.sh --rotate` plus a commit of the new pin.
 - `scripts/generate_social_preview.swift` renders `Assets/social-preview.png`, which is uploaded by hand in Settings → Social preview.
 
 ## Toolchain gotchas
@@ -42,6 +46,7 @@ Git workflow:
 - **Never use `@State`.** In the macOS 27 SDK it is a SwiftUI macro whose plugin ships only with Xcode, so `swift build` under the Command Line Tools fails. Use `@ViewState` (`Views/Theme.swift`), a wrapper around the `State` struct.
 - Swift language mode 5 (`Package.swift`). UI and service classes are explicitly `@MainActor`. Callbacks from `NotificationCenter`, `DispatchSource`, `Timer`, `NSEvent` monitors, `onPreferenceChange` and the AX C callback wrap their bodies in `MainActor.assumeIsolated { … }`.
 - **Accessibility trust is tied to the code signature.** Ad-hoc signing (`codesign -s -`) produces a new identity every build, and the System Settings switch then silently refers to the old build. `bundle.sh` uses the stable local identity when present. If trust looks stuck, check the `tccd` log ("Failed to match existing code requirement") and run `tccutil reset Accessibility dev.kosmodock.Kosmodock`.
+- Self-signed certificates aren't trusted, so `security find-identity -v` reports 0 valid identities. `codesign` signs with them anyway, by name or SHA-1, and the grant only checks `certificate leaf = H"<SHA-1>"`. Also, `security find-certificate -a` exits 0 even when nothing matches; test for output instead.
 
 ## Architecture
 

@@ -8,6 +8,8 @@
 # Signing: uses "Kosmodock Local Signing" (created by scripts/setup-signing.sh)
 # when present, so the Accessibility grant survives rebuilds; otherwise falls
 # back to an ad-hoc signature, which macOS treats as a new app on every build.
+# The release workflow sets SIGN_IDENTITY to a Developer ID or to the SHA-1 of
+# the release certificate (scripts/create-release-certificate.sh).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
