@@ -1,5 +1,7 @@
+import AppKit
 import CoreGraphics
 import Foundation
+import SwiftUI
 import XCTest
 @testable import Kosmodock
 
@@ -406,6 +408,7 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(AppLanguage.portugueseBR.lprojName, "pt-BR")
         XCTAssertEqual(AppLanguage.spanishES.locale.identifier, "es_ES")
     }
+
 }
 
 final class LegacyMigrationTests: XCTestCase {
@@ -430,5 +433,50 @@ final class LegacyMigrationTests: XCTestCase {
         try #"{ "groups": [{"name": "Edited"}] }"#.write(to: current.appendingPathComponent("config.json"), atomically: true, encoding: .utf8)
         LegacyMigration.run(fileManager: fileManager, home: home)
         XCTAssertTrue(try String(contentsOf: current.appendingPathComponent("config.json"), encoding: .utf8).contains("Edited"))
+    }
+}
+
+/// Every capsule takes the widest capsule's width, so a badge that changed
+/// width with each reading made the whole dock grow and shrink.
+@MainActor
+final class BadgeWidthTests: XCTestCase {
+    private let gib: UInt64 = 1_073_741_824
+
+    private func width(_ badge: WidgetBadge) -> CGFloat {
+        NSHostingView(rootView: BadgeView(badge: badge)).fittingSize.width
+    }
+
+    private func assertSameWidth(_ badges: [WidgetBadge], file: StaticString = #filePath, line: UInt = #line) {
+        let widths = badges.map(width)
+        XCTAssertEqual(Set(widths).count, 1, "widths \(widths) for \(badges.map(\.text))", file: file, line: line)
+        // Without the reserve, the same readings would have different widths.
+        let bare = badges.map { width(WidgetBadge(text: $0.text)) }
+        XCTAssertGreaterThan(Set(bare).count, 1, "readings too similar to prove anything", file: file, line: line)
+    }
+
+    func testCPUAndMemoryReadingsKeepTheWidth() {
+        let readings: [(Double, UInt64)] = [
+            (0, 0), (0.4, 900 * 1_048_576), (7, 3 * gib), (12, 9 * gib), (99, 12 * gib), (120, 64 * gib), (640, 512 * gib),
+        ]
+        assertSameWidth(readings.map { WidgetBadge.usage(cpu: $0.0, memory: $0.1) })
+        assertSameWidth(readings.map { WidgetBadge.systemUsage(cpu: $0.0, memory: $0.1) })
+    }
+
+    func testPodmanReadingsKeepTheWidth() {
+        let readings: [(Int, Double)] = [(0, 0), (1, 0.3), (3, 9), (12, 45), (40, 310)]
+        assertSameWidth(readings.map { WidgetBadge.podmanRunning(containers: $0.0, cpu: $0.1) })
+    }
+
+    func testPortCountsAndMemoryKeepTheWidth() {
+        let ports = (0...12).map { up in
+            WidgetBadge.fraction(up, of: 12) { "\($0)/\($1) ports" }.addingMemory(UInt64(up) * 3 * gib)
+        }
+        assertSameWidth(ports)
+    }
+
+    func testFixedTextHasNoReserve() {
+        let badge = WidgetBadge(text: "🦭 VM Stopped")
+        XCTAssertTrue(badge.reserve.isEmpty)
+        XCTAssertTrue(badge.addingMemory(gib).reserve.allSatisfy { $0.hasPrefix("🦭 VM Stopped • ") })
     }
 }

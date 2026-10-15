@@ -354,7 +354,9 @@ final class AppModel {
         let widget = group.widget
         let usage = usage(for: group)
         var level: HealthLevel?
-        var text: String
+        // Numeric texts come with their widest variants (`WidgetBadge.reserve`),
+        // so a new reading never resizes the dock.
+        var badge: WidgetBadge
 
         switch widget.type {
         case .none:
@@ -363,51 +365,52 @@ final class AppModel {
                 // capsule has the same shape.
                 guard !group.apps.isEmpty else { return WidgetBadge(level: nil, text: L10n.tr("No apps")) }
                 let open = group.apps.filter { workspace.isRunning($0) }.count
-                return WidgetBadge(level: nil, text: L10n.tr("%lld/%lld open", open, group.apps.count))
+                return .fraction(open, of: group.apps.count) { L10n.tr("%lld/%lld open", $0, $1) }
             }
             let levels = widget.probes.map { self.level(for: $0, in: group) }
-            text = L10n.tr("%lld/%lld checks", levels.filter { $0 == .ok }.count, levels.count)
+            badge = .fraction(levels.filter { $0 == .ok }.count, of: levels.count) { L10n.tr("%lld/%lld checks", $0, $1) }
 
         case .cpuRam:
             if usage.processCount > 0 {
-                text = "\(Format.percent(usage.cpuPercent)) CPU • \(Format.bytes(usage.memoryBytes))"
+                badge = .usage(cpu: usage.cpuPercent, memory: usage.memoryBytes)
             } else {
-                let system = telemetry.system
-                text = L10n.tr("SYS %@ • %@", Format.percent(system.cpuPercent), Format.bytes(system.memoryUsed))
+                badge = .systemUsage(cpu: telemetry.system.cpuPercent, memory: telemetry.system.memoryUsed)
             }
 
         case .podman:
             if let operation = containers.machineOperation {
                 level = .warning
-                text = "🦭 \(operation.progressTitle)"
+                badge = WidgetBadge(text: "🦭 \(operation.progressTitle)")
                 break
             }
             level = containers.status.level
             switch containers.status {
             case .running:
                 let cpu = telemetry.vmUsage?.cpuPercent ?? telemetry.system.cpuPercent
-                text = L10n.tr("🦭 %lld UP • %@ CPU", containers.runningCount, Format.percent(cpu))
-            case .stopped: text = L10n.tr("🦭 VM Stopped")
-            case .starting: text = L10n.tr("🦭 Starting…")
-            case .noMachine: text = L10n.tr("🦭 No VM")
-            case .notInstalled: text = L10n.tr("🦭 Not installed")
-            case .daemonUnavailable: text = L10n.tr("🐳 Daemon down")
-            case .unknown: text = "🦭 …"
+                badge = .podmanRunning(containers: containers.runningCount, cpu: cpu)
+            case .stopped: badge = WidgetBadge(text: L10n.tr("🦭 VM Stopped"))
+            case .starting: badge = WidgetBadge(text: L10n.tr("🦭 Starting…"))
+            case .noMachine: badge = WidgetBadge(text: L10n.tr("🦭 No VM"))
+            case .notInstalled: badge = WidgetBadge(text: L10n.tr("🦭 Not installed"))
+            case .daemonUnavailable: badge = WidgetBadge(text: L10n.tr("🐳 Daemon down"))
+            case .unknown: badge = WidgetBadge(text: "🦭 …")
             }
 
         case .portProbe:
             let ports = widget.ports
             level = ports.isEmpty ? nil : portLevel(ports)
             if ports.isEmpty {
-                text = L10n.tr("No ports")
+                badge = WidgetBadge(text: L10n.tr("No ports"))
             } else if ports.count == 1 {
-                text = ":\(ports[0])"
+                badge = WidgetBadge(text: ":\(ports[0])")
             } else {
-                text = L10n.tr("%lld/%lld ports", ports.filter(telemetry.isListening).count, ports.count)
+                badge = .fraction(ports.filter(telemetry.isListening).count, of: ports.count) { L10n.tr("%lld/%lld ports", $0, $1) }
             }
-            if usage.processCount > 0 { text += " • \(Format.bytes(usage.memoryBytes))" }
+            if usage.processCount > 0 { badge = badge.addingMemory(usage.memoryBytes) }
 
         case .customCommand:
+            // Free text: its width can't be predicted, so it has no reserve.
+            var text: String
             if let result = telemetry.commandResults[TelemetryService.commandKey(group: group)] {
                 level = result.level
                 text = result.summary
@@ -419,6 +422,7 @@ final class AppModel {
                !text.hasPrefix(label) {
                 text = "\(label) \(text)"
             }
+            badge = WidgetBadge(text: text)
         }
 
         if widget.type != .none, !widget.probes.isEmpty {
@@ -427,7 +431,8 @@ final class AppModel {
         } else if widget.type == .none {
             level = widget.probes.map { self.level(for: $0, in: group) }.max()
         }
-        return WidgetBadge(level: level, text: text)
+        badge.level = level
+        return badge
     }
 
     // MARK: Config bindings
