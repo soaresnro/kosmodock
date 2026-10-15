@@ -29,7 +29,11 @@ Diagnostics: `log show --last 5m --info --predicate 'subsystem == "dev.kosmodock
 
 UI can't be screenshotted from the terminal (no Screen Recording). Debug builds render PNGs instead: `.build/debug/Kosmodock --render-snapshots <dir> [--language pt-BR|es-ES|en-US]`. `ImageRenderer` draws the `NSVisualEffectView` blur as a yellow placeholder. Translations only load inside an `.app` (from `Bundle.main`), so for localized snapshots copy the debug binary and `Localization/*.lproj` into a throwaway `.app` with a *different* bundle id; the same id would trip the single-instance guard.
 
-Pushing: the global git credential helper is Git Credential Manager; push with gh credentials per command: `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push origin main`.
+Git workflow:
+- `main` is protected by the "Protect main" ruleset: pull request required, no direct push, no force push or deletion, nobody bypasses it. Work on a branch and open a PR with `gh pr create`.
+- The global credential helper is Git Credential Manager, so push with gh credentials per command: `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin <branch>`.
+- This repo's git `user.email` is set locally to the GitHub noreply address; keep it so personal email addresses stay out of the public history.
+- Licensed Apache-2.0 (`LICENSE`, `NOTICE`).
 
 ## Toolchain gotchas
 
