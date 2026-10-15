@@ -1,0 +1,6 @@
+.build/
+.swiftpm/
+Kosmodock.app/
+*.xcodeproj
+xcuserdata/
+.DS_Store

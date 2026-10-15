@@ -1,0 +1,96 @@
+#if DEBUG
+import AppKit
+import SwiftUI
+
+/// Debug builds only: `Kosmodock --render-snapshots <dir>` samples live
+/// telemetry for a few seconds, renders the dock (bento + accordion) and every
+/// group's popover to PNG, then exits. `ImageRenderer` can't draw behind-window
+/// vibrancy, so a gradient stands in for the desktop.
+@MainActor
+enum SnapshotRenderer {
+    static var requestedDirectory: URL? {
+        let arguments = CommandLine.arguments
+        guard let index = arguments.firstIndex(of: "--render-snapshots"), index + 1 < arguments.count else { return nil }
+        return URL(fileURLWithPath: arguments[index + 1])
+    }
+
+    /// `--language pt-BR|es-ES|en-US` (in-memory only; config.json is untouched).
+    static var requestedLanguage: AppLanguage? {
+        let arguments = CommandLine.arguments
+        guard let index = arguments.firstIndex(of: "--language"), index + 1 < arguments.count else { return nil }
+        return AppLanguage(rawValue: arguments[index + 1])
+    }
+
+    private static var language: AppLanguage = .system
+
+    static func run(model: AppModel, to directory: URL) async {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        if let requested = requestedLanguage {
+            language = requested
+            L10n.setLanguage(requested)
+        }
+        model.telemetry.start()
+        model.containers.setEnabled(true)
+        try? await Task.sleep(for: .seconds(7))
+
+        injectSampleMinimizedWindows(into: model)
+        let width = model.dockMaxWidth + DockMetrics.shadowInset * 2
+        let geometry = GroupGeometryTracker()
+        write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock", in: directory)
+
+        for group in model.config.groups {
+            write(BentoPopoverView(groupID: group.id).fixedSize(), model: model, proposed: nil, name: "popover-\(group.id)", in: directory)
+        }
+
+        if let first = model.config.groups.first {
+            model.expandedGroupID = first.id
+            write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock-accordion", in: directory)
+        }
+        print("Snapshots written to \(directory.path)")
+        exit(0)
+    }
+
+    private static func injectSampleMinimizedWindows(into model: AppModel) {
+        guard let first = model.config.groups.first, let app = first.apps.first,
+              let bundleID = model.workspace.bundleID(for: app) else { return }
+        let titles = ["Kosmodock – DockController.swift", "Terminal — podman ps", "Pull Request #42"]
+        let entries = titles.enumerated().map { index, title in
+            MinimizedWindow(
+                ref: AXElementRef(AXUIElementCreateApplication(pid_t(90_000 + index))),
+                pid: pid_t(90_000 + index), bundleID: bundleID, groupID: first.id, title: title,
+                frame: CGRect(x: 100, y: 100, width: 1000, height: 700),
+                minimizedAt: Date().addingTimeInterval(TimeInterval(-60 * (index + 1)))
+            )
+        }
+        model.minimizedWindows.injectPreviewEntries(entries)
+    }
+
+    private static func write<V: View>(_ view: V, model: AppModel, proposed: CGSize?, name: String, in directory: URL) {
+        let content = view
+            .environment(model)
+            .environment(\.locale, language == .system ? model.locale : language.locale)
+            .padding(24)
+            .background(
+                LinearGradient(
+                    colors: [Color(red: 0.13, green: 0.17, blue: 0.32), Color(red: 0.42, green: 0.22, blue: 0.40)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
+            )
+            .environment(\.colorScheme, .dark)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 2
+        if let proposed {
+            renderer.proposedSize = ProposedViewSize(width: proposed.width + 48, height: proposed.height + 48)
+        }
+        guard let image = renderer.nsImage,
+              let tiff = image.tiffRepresentation,
+              let bitmap = NSBitmapImageRep(data: tiff),
+              let png = bitmap.representation(using: .png, properties: [:])
+        else {
+            print("Failed to render \(name)")
+            return
+        }
+        try? png.write(to: directory.appendingPathComponent("\(name).png"))
+    }
+}
+#endif
