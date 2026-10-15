@@ -1,8 +1,46 @@
 # Kosmodock
 
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+![Platform: macOS 14+](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg)
+![Swift 6](https://img.shields.io/badge/Swift-6-orange.svg)
+
+![Kosmodock: a macOS Dock replacement with live widget groups](Assets/social-preview.png)
+
+<!-- Demo: drop a 30–60 s screen recording (or GIF) here: capsules with live telemetry, the Bento popover, Launch & Tile, a window minimizing into its group, switching languages. -->
+
 A macOS Dock replacement built around **app groups that are live widgets**. Each capsule on the dock shows a group's apps plus live telemetry: CPU/RAM, Podman containers, listening ports, or the output of your own shell command. Clicking a capsule expands it (Bento popover or inline accordion), and one click launches the whole group and tiles its windows.
 
-Requires macOS 14+ on Apple Silicon. Built with Swift 6.4, SwiftUI, AppKit, Mach/libproc and the Accessibility API.
+Requires macOS 14+ on Apple Silicon. Built with Swift 6.4, SwiftUI, AppKit, Mach/libproc and the Accessibility API. Free and open source under the Apache 2.0 license.
+
+## Installation
+
+### Download
+
+Grab `Kosmodock-<version>.dmg` (or `.zip`) from [Releases](https://github.com/soaresnro/kosmodock/releases) and drag **Kosmodock** to `/Applications`.
+
+Builds signed with an Apple Developer ID and notarized open normally. A build that isn't notarized yet is stopped by Gatekeeper the first time you open it. Allow it once in **System Settings → Privacy & Security → Open Anyway**, or run `xattr -dr com.apple.quarantine /Applications/Kosmodock.app`. Every release lists its signing status and a `SHA256SUMS.txt`.
+
+On first launch, grant **Accessibility** when macOS asks (see [Permissions](#permissions)).
+
+### Build from source
+
+See [Build & run](#build--run) below. It takes a minute with Xcode or the Command Line Tools installed.
+
+## Privacy
+
+- **Nothing leaves your Mac.** Kosmodock makes no internet requests: no analytics, no update checks, no telemetry. The only sockets it opens are connections to `127.0.0.1` to check whether ports you configured are listening.
+- **What it reads:** CPU, memory and process usage through Mach/libproc; listening ports through `lsof`; Podman/Docker status through their CLIs (`podman machine list`, `podman ps`); and the output of shell commands **you** put in `config.json`.
+- **Accessibility** is used only to move, resize, minimize, restore and raise windows, and to be notified when windows move or minimize. It reads window frames and titles (the titles are shown in *Minimized Windows*), never window contents.
+- **Global input:** to animate minimizes and close popovers, Kosmodock observes mouse clicks system-wide and checks key presses for exactly two keys, ⌘M and Escape. Nothing is logged or stored.
+- **The native Dock:** *Hide the native macOS Dock* changes four `com.apple.dock` preferences and restores your original values whenever Kosmodock quits or crashes (see [Native Dock suppression & recovery](#native-dock-suppression--recovery)). To restore them by hand: `defaults delete com.apple.dock autohide-delay; defaults write com.apple.dock autohide -bool false; killall Dock`.
+- Your settings live in `~/.config/kosmodock/config.json`.
+
+## Uninstall
+
+1. Quit Kosmodock from its menu (this restores the native Dock).
+2. Delete `Kosmodock.app` and `~/.config/kosmodock`.
+3. Remove Kosmodock from **System Settings → Privacy & Security → Accessibility**, and from **Login Items** if you enabled launch at login.
+4. If you built it yourself: `bash scripts/setup-signing.sh --remove` deletes the local signing identity.
 
 ## Build & run
 
