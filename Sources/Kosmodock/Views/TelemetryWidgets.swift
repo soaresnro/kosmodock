@@ -350,11 +350,11 @@ private struct CommandCard: View {
 
     var body: some View {
         let result = model.telemetry.commandResults[TelemetryService.commandKey(group: group)]
-        BentoCard(title: group.widget.label?.isBlank == false ? group.widget.label! : L10n.tr("Command"), symbol: "terminal") {
+        BentoCard(title: group.widget.label?.isBlank == false ? L10n.configText(group.widget.label!) : L10n.tr("Command"), symbol: "terminal") {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
                     StatusDot(level: result?.level ?? .unknown, size: 7)
-                    Text(result?.summary ?? L10n.tr("Waiting for first run…"))
+                    Text(result.map { L10n.configText($0.summary) } ?? L10n.tr("Waiting for first run…"))
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
                     Spacer(minLength: 6)

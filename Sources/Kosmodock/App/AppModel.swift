@@ -413,12 +413,12 @@ final class AppModel {
             var text: String
             if let result = telemetry.commandResults[TelemetryService.commandKey(group: group)] {
                 level = result.level
-                text = result.summary
+                text = L10n.configText(result.summary)
             } else {
                 level = .unknown
                 text = (widget.command?.isBlank ?? true) ? L10n.tr("No command") : L10n.tr("Running…")
             }
-            if let label = widget.label, !label.isBlank, widget.type == .customCommand,
+            if let label = widget.label.map(L10n.configText), !label.isBlank, widget.type == .customCommand,
                !text.hasPrefix(label) {
                 text = "\(label) \(text)"
             }

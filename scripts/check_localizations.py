@@ -5,7 +5,8 @@
     python3 scripts/check_localizations.py --keys   # print the keys found in code
 
 Keys are the English text. They come from SwiftUI literals (Text("…"),
-Button("…"), .help("…") …) and from L10n.tr("…") calls. Each language's
+Button("…"), .help("…") …), from L10n.tr("…") calls, and from configKey("…"),
+which marks texts saved in config.json and translated on display. Each language's
 Localization/<lang>.lproj/Localizable.strings must contain every key, and the
 format specifiers (%@, %lld, %d) of a translation must match its key's.
 """
@@ -39,6 +40,7 @@ SWIFTUI_PATTERNS = [
     r'\bmessage: ' + STRING,
 ]
 L10N_PATTERN = r'\bL10n\.tr\(' + STRING
+CONFIG_KEY_PATTERN = r'\bconfigKey\(' + STRING
 FORMAT = re.compile(r'%(?:\d+\$)?(?:lld|ld|d|@|lf|f)')
 
 
@@ -54,7 +56,7 @@ def keys_in_code():
         for number, line in enumerate(path.read_text().splitlines(), 1):
             if line.strip().startswith("//"):
                 continue
-            for pattern in SWIFTUI_PATTERNS + [L10N_PATTERN]:
+            for pattern in SWIFTUI_PATTERNS + [L10N_PATTERN, CONFIG_KEY_PATTERN]:
                 for match in re.finditer(pattern, line):
                     raw = match.group(1)
                     if "\\(" in raw:  # interpolated literals must use L10n.tr

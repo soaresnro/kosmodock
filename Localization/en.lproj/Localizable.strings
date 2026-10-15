@@ -11,6 +11,7 @@
 "%lld/%lld ports" = "%lld/%lld ports";
 "%lld/%lld up" = "%lld/%lld up";
 "1 minimized window" = "1 minimized window";
+"AC power" = "AC power";
 "Accent" = "Accent";
 "Accessibility" = "Accessibility";
 "Accessibility access granted" = "Accessibility access granted";
@@ -28,6 +29,7 @@
 "Apply Layout Now" = "Apply Layout Now";
 "Apps" = "Apps";
 "Auto-detect (/opt/homebrew/bin/podman, /usr/local/bin/podman…)" = "Auto-detect (/opt/homebrew/bin/podman, /usr/local/bin/podman…)";
+"Battery" = "Battery";
 "Behavior" = "Behavior";
 "Bento Popover" = "Bento Popover";
 "Binary path" = "Binary path";

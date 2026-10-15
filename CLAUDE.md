@@ -101,4 +101,5 @@ Git workflow:
 - Everything else (enum titles, badges, AppKit menus, errors, any interpolated or ternary string) must use `L10n.tr("key", args…)` with explicit `%@`/`%lld`/`%d`. Format numbers with `L10n.locale`.
 - Custom components (`BentoCard`, `IconButton`, `StatLine`, `SliderRow`) take already-localized `String`s.
 - A new key must be added to all three files; `check_localizations.py` and `LocalizationTests` enforce key parity and matching format specifiers.
+- Text Kosmodock writes into `config.json` itself (default labels, a default command's fallback output) is saved in English as an `L10n.configKey("…")` constant and shown through `L10n.configText(_:)`. That recognizes the text in any language, so an old "Bateria" still follows the interface language, and leaves anything the user typed as is.
 - Badge texts that contain numbers come with a `reserve` of their widest variants (`WidgetBadge.usage`, `.fraction`, …), and `BadgeView` reserves that width. Otherwise one reading gaining a digit resizes every capsule, and with them the dock. New numeric badges must do the same; `BadgeWidthTests` measures it.

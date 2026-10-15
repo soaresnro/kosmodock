@@ -119,8 +119,9 @@ enum AppDiscovery {
                 name: "System", symbol: "gearshape.2.fill", tint: "#8E8E93",
                 widget: WidgetConfig(
                     type: .customCommand,
-                    command: "pmset -g batt | grep -Eo '[0-9]+%' | head -1 | sed 's/^/🔋 /' | grep . || echo 'AC power'",
-                    label: "Battery",
+                    // Saved in English; L10n.configText shows both in the interface language.
+                    command: "pmset -g batt | grep -Eo '[0-9]+%' | head -1 | sed 's/^/🔋 /' | grep . || echo '\(L10n.acPower)'",
+                    label: L10n.battery,
                     interval: 30
                 ),
                 layout: .maximizeAll, maxApps: 4,

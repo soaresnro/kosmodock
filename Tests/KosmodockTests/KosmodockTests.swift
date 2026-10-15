@@ -409,6 +409,32 @@ final class LocalizationTests: XCTestCase {
         XCTAssertEqual(AppLanguage.spanishES.locale.identifier, "es_ES")
     }
 
+    /// Texts Kosmodock saves in config.json are recognized in whatever language
+    /// they were saved in, so they can show in the interface language.
+    func testConfigTextsAreRecognizedInEveryLanguage() throws {
+        let tables = try ["pt-BR", "es"].map(table)
+        let index = L10n.index(of: [L10n.battery, L10n.acPower], translations: tables.map { table in { table[$0] ?? $0 } })
+        for spelling in ["Battery", "BATTERY", "Bateria", "bateria", "Batería"] {
+            XCTAssertEqual(index[spelling.lowercased()], "Battery", spelling)
+        }
+        XCTAssertEqual(index["na tomada"], "AC power")
+        XCTAssertEqual(index["enchufado"], "AC power")
+        XCTAssertNil(index["energia"], "a label the user typed isn't a config text")
+    }
+
+    func testUserTextIsShownAsIs() {
+        XCTAssertEqual(L10n.configText("Energia"), "Energia")
+        XCTAssertEqual(L10n.configText("🔋 85%"), "🔋 85%")
+        // Tests have no app bundle, so a config text falls back to English.
+        XCTAssertEqual(L10n.configText(" battery "), "Battery")
+    }
+
+    func testDefaultSystemGroupSavesConfigTextsInEnglish() throws {
+        let config = AppDiscovery.makeDefaultConfig(installed: [], hasContainerRuntime: false)
+        let system = try XCTUnwrap(config.groups.first { $0.name == "System" })
+        XCTAssertEqual(system.widget.label, "Battery")
+        XCTAssertEqual(system.widget.command?.hasSuffix("|| echo 'AC power'"), true)
+    }
 }
 
 final class LegacyMigrationTests: XCTestCase {
