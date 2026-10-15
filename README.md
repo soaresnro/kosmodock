@@ -22,6 +22,25 @@ Releases are signed with the **Kosmodock release certificate**, a self-signed ce
 
 On first launch, grant **Accessibility** when macOS asks (see [Permissions](#permissions)). Updates keep the grant, because every release carries the same signing identity. The exception is 1.0.0, which was signed ad-hoc: after updating from it, grant Accessibility once more.
 
+### Install from the terminal
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/soaresnro/kosmodock/main/install.sh | bash
+```
+
+[`install.sh`](install.sh) installs the latest release in `/Applications`, quitting a running Kosmodock first:
+
+- It downloads the release `.zip` and checks it against the release's `SHA256SUMS.txt`.
+- It checks that the app is signed with the release certificate pinned at that release's tag.
+
+Files downloaded with `curl` aren't marked as coming from the internet, so Gatekeeper doesn't stop the first launch. Running the script replaces clicking *Open Anyway* as your trust decision, so read it first if you like. Run it again to update.
+
+To change what it does, put variables before `bash` (`curl … | KOSMODOCK_NO_OPEN=1 bash`):
+
+- `KOSMODOCK_VERSION=1.0.1` installs that version instead of the latest.
+- `KOSMODOCK_INSTALL_DIR=~/Applications` installs somewhere other than `/Applications`.
+- `KOSMODOCK_NO_OPEN=1` doesn't launch it afterwards.
+
 ### Build from source
 
 See [Build & run](#build--run) below. It takes a minute with Xcode or the Command Line Tools installed.
