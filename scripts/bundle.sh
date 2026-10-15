@@ -103,7 +103,12 @@ printf 'APPL????' > "$APP/Contents/PkgInfo"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
 echo "▸ Signing (identity: $SIGN_IDENTITY)…"
-codesign --force --deep --sign "$SIGN_IDENTITY" "$APP"
+CODESIGN_FLAGS=(--force --deep --sign "$SIGN_IDENTITY")
+# Notarization requires the hardened runtime and a secure timestamp.
+if [[ "$SIGN_IDENTITY" == "Developer ID Application"* ]]; then
+    CODESIGN_FLAGS+=(--options runtime --timestamp)
+fi
+codesign "${CODESIGN_FLAGS[@]}" "$APP"
 codesign --verify --deep --strict "$APP"
 echo "  Identity: $(codesign -dr - "$APP" 2>&1 | sed -n 's/^designated => //p')"
 

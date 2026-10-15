@@ -34,6 +34,8 @@ Git workflow:
 - The global credential helper is Git Credential Manager, so push with gh credentials per command: `git -c credential.helper= -c 'credential.helper=!gh auth git-credential' push -u origin <branch>`.
 - This repo's git `user.email` is set locally to the GitHub noreply address; keep it so personal email addresses stay out of the public history.
 - Licensed Apache-2.0 (`LICENSE`, `NOTICE`).
+- `.github/workflows/release.yml` tests and packages every PR; pushing a `v*` tag publishes a GitHub Release. It signs and notarizes only when the `MACOS_DEVELOPER_ID_*`/`MACOS_NOTARY_*` secrets exist. `bundle.sh` adds `--options runtime --timestamp` for Developer ID identities.
+- `scripts/generate_social_preview.swift` renders `Assets/social-preview.png`, which is uploaded by hand in Settings → Social preview.
 
 ## Toolchain gotchas
 
