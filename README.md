@@ -168,3 +168,7 @@ Sources/Kosmodock
 - Per-app memory follows each app's process tree. XPC services launched by `launchd` (e.g. Safari's WebContent processes) aren't attributed to their app.
 - Port 5000 is the macOS AirPlay Receiver by default, so a `:5000` probe reports it as listening.
 - The dock lives on the primary display.
+
+## License
+
+Kosmodock is licensed under the [Apache License 2.0](LICENSE). You may use, modify and distribute it, including commercially, as long as you keep the license and the notices in [NOTICE](NOTICE). The license grants no rights to the Kosmodock name or icon.
