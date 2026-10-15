@@ -116,6 +116,54 @@ extension ProbeResult: Equatable {
 struct WidgetBadge: Equatable, Sendable {
     var level: HealthLevel?
     var text: String
+    /// The widest texts `text` can become while only its numbers change.
+    /// `BadgeView` reserves room for them: every capsule takes the widest
+    /// capsule's width, so one reading gaining a digit would resize the dock.
+    var reserve: [String] = []
+}
+
+extension WidgetBadge {
+    /// "12% CPU • 3.8 GB"
+    static func usage(cpu: Double, memory: UInt64) -> WidgetBadge {
+        reading(cpu: cpu, memory: memory) { "\($0) CPU • \($1)" }
+    }
+
+    /// "SYS 12% • 3.8 GB", when none of the group's apps is running.
+    static func systemUsage(cpu: Double, memory: UInt64) -> WidgetBadge {
+        reading(cpu: cpu, memory: memory) { L10n.tr("SYS %@ • %@", $0, $1) }
+    }
+
+    /// "🦭 2 UP • 4% CPU"
+    static func podmanRunning(containers: Int, cpu: Double) -> WidgetBadge {
+        let make = { (count: Int, cpu: String) in L10n.tr("🦭 %lld UP • %@ CPU", count, cpu) }
+        // Room for two-digit container counts.
+        return WidgetBadge(
+            text: make(containers, Format.percent(cpu)),
+            reserve: Format.percentSamples.map { make(max(containers, 88), $0) }
+        )
+    }
+
+    /// "2/4 ports": the count never has more digits than the total.
+    static func fraction(_ count: Int, of total: Int, _ make: (Int, Int) -> String) -> WidgetBadge {
+        WidgetBadge(text: make(count, total), reserve: [make(total, total)])
+    }
+
+    /// Appends " • 3.8 GB".
+    func addingMemory(_ bytes: UInt64) -> WidgetBadge {
+        let bases = reserve.isEmpty ? [text] : reserve
+        return WidgetBadge(
+            level: level,
+            text: "\(text) • \(Format.bytes(bytes))",
+            reserve: bases.flatMap { base in Format.bytesSamples.map { "\(base) • \($0)" } }
+        )
+    }
+
+    private static func reading(cpu: Double, memory: UInt64, _ make: (String, String) -> String) -> WidgetBadge {
+        WidgetBadge(
+            text: make(Format.percent(cpu), Format.bytes(memory)),
+            reserve: Format.percentSamples.flatMap { cpu in Format.bytesSamples.map { make(cpu, $0) } }
+        )
+    }
 }
 
 enum Format {
@@ -133,5 +181,14 @@ enum Format {
     static func percent(_ value: Double) -> String {
         if value >= 0.05, value < 1 { return String(format: "%.1f%%", locale: L10n.locale, value) }
         return "\(Int(value.rounded()))%"
+    }
+
+    /// The widest shapes `percent` produces: three digits, and one decimal.
+    /// A group's CPU passes 100% on several cores.
+    static var percentSamples: [String] { [percent(888), percent(0.88)] }
+
+    /// The widest shapes `bytes` produces: three-digit MB, one-decimal GB, three-digit GB.
+    static var bytesSamples: [String] {
+        [bytes(888 * 1_048_576), bytes(8 * 1_073_741_824), bytes(888 * 1_073_741_824)]
     }
 }

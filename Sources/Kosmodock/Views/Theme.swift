@@ -161,12 +161,18 @@ struct BadgeView: View {
     var body: some View {
         HStack(spacing: 4) {
             if let level = badge.level { StatusDot(level: level, size: 6) }
-            Text(badge.text)
-                .font(.system(size: 10, weight: .medium, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .contentTransition(.numericText())
-                .frame(minWidth: 72, alignment: .leading)
+            ZStack(alignment: .leading) {
+                // Invisible widest readings hold the width while the numbers change.
+                ForEach(badge.reserve.indices, id: \.self) { index in
+                    Text(badge.reserve[index]).hidden()
+                }
+                Text(badge.text)
+                    .contentTransition(.numericText())
+            }
+            .font(.system(size: 10, weight: .medium, design: .rounded))
+            .monospacedDigit()
+            .lineLimit(1)
+            .frame(minWidth: 72, alignment: .leading)
         }
         .foregroundStyle(.secondary)
     }
