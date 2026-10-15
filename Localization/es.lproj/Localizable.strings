@@ -11,6 +11,7 @@
 "%lld/%lld ports" = "%lld/%lld puertos";
 "%lld/%lld up" = "%lld/%lld activos";
 "1 minimized window" = "1 ventana minimizada";
+"AC power" = "Enchufado";
 "Accent" = "Color de acento";
 "Accessibility" = "Accesibilidad";
 "Accessibility access granted" = "Acceso de Accesibilidad concedido";
@@ -28,6 +29,7 @@
 "Apply Layout Now" = "Aplicar distribución ahora";
 "Apps" = "Apps";
 "Auto-detect (/opt/homebrew/bin/podman, /usr/local/bin/podman…)" = "Detección automática (/opt/homebrew/bin/podman, /usr/local/bin/podman…)";
+"Battery" = "Batería";
 "Behavior" = "Comportamiento";
 "Bento Popover" = "Popover Bento";
 "Binary path" = "Ruta del binario";

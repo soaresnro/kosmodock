@@ -38,4 +38,41 @@ enum L10n {
         let format = source.localizedString(forKey: key, value: key, table: nil)
         return arguments.isEmpty ? format : String(format: format, locale: locale, arguments: arguments)
     }
+
+    // MARK: Texts saved in config.json
+
+    // Kosmodock writes a few texts into config.json itself: the default System
+    // group's label and its command's fallback output. They're saved in English,
+    // and older configs may hold another language's spelling; either way they
+    // show in the interface language. Text the user typed is shown as is.
+    static let battery = configKey("Battery")
+    static let acPower = configKey("AC power")
+
+    /// `text` in the interface language when it is a config text in any
+    /// language ("Bateria" shows as "Batería" in Spanish); otherwise unchanged.
+    static func configText(_ text: String) -> String {
+        guard let key = configTextIndex[text.trimmingCharacters(in: .whitespaces).lowercased()] else { return text }
+        return tr(key)
+    }
+
+    /// Every spelling of `keys`, lowercased, mapped to its key. Each element of
+    /// `translations` gives one language's spelling of a key.
+    static func index(of keys: [String], translations: [(String) -> String]) -> [String: String] {
+        var index: [String: String] = [:]
+        for key in keys {
+            index[key.lowercased()] = key
+            for translate in translations { index[translate(key).lowercased()] = key }
+        }
+        return index
+    }
+
+    private static let configTextIndex = index(
+        of: [battery, acPower],
+        translations: AppLanguage.allCases.compactMap(\.lprojName)
+            .compactMap { Bundle.main.path(forResource: $0, ofType: "lproj").flatMap(Bundle.init(path:)) }
+            .map { bundle in { bundle.localizedString(forKey: $0, value: $0, table: nil) } }
+    )
+
+    /// Marks a config text's key; scripts/check_localizations.py collects these.
+    private static func configKey(_ key: String) -> String { key }
 }
