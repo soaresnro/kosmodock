@@ -212,6 +212,7 @@ jobs:
           fi
           if [ "$SIGNING" = "self-signed" ]; then
             printf '\nSigned with the Kosmodock release certificate, the same for every release, so macOS keeps the Accessibility permission when you update. `codesign -dr - /Applications/Kosmodock.app` should end with `certificate leaf = H"%s"`.\n' "$CERTIFICATE" >> notes.md
+            printf '\nPrefer the terminal? This verifies the checksum and signature, installs the app and skips the Gatekeeper prompt:\n\n```sh\ncurl -fsSL https://raw.githubusercontent.com/%s/main/install.sh | bash\n```\n' "$GITHUB_REPOSITORY" >> notes.md
           fi
           printf '\nVerify downloads with `shasum -a 256 -c SHA256SUMS.txt`.\n' >> notes.md
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \

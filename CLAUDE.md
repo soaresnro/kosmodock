@@ -39,6 +39,10 @@ Git workflow:
   - The self-signed "Kosmodock Release Signing" certificate (`MACOS_SELF_SIGNED_P12*`, created by `scripts/create-release-certificate.sh`). It keeps the Accessibility grant across updates.
   - Otherwise ad-hoc.
 - `.github/release-signing-certificate.sha1` pins the release certificate, and the workflow fails when a build's designated requirement doesn't match it. Never replace the certificate casually: every user would have to grant Accessibility again. Rotation is `create-release-certificate.sh --rotate` plus a commit of the new pin.
+- `install.sh` (repo root, run as `curl … | bash` from `main`) must stay bash 3.2 compatible, which is macOS's `/bin/bash`, and keep all logic inside `main`.
+  - It checks the release's `SHA256SUMS.txt` and the pin at that release's tag, so it refuses 1.0.0, which has no pin.
+  - It resets the Accessibility grant only when the installed app's signature differs. Test it with `KOSMODOCK_INSTALL_DIR=<scratch dir> KOSMODOCK_NO_OPEN=1` and a fake `tccutil` first in `PATH`, because `tccutil reset` acts on the bundle id, so it would clear your real grant.
+  - A move to Developer ID needs its signature check updated.
 - `scripts/generate_social_preview.swift` renders `Assets/social-preview.png`, which is uploaded by hand in Settings → Social preview.
 
 ## Toolchain gotchas
