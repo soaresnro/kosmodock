@@ -4,14 +4,21 @@
 # - Tags `v*` (e.g. v1.0.0): the same, then a GitHub Release with the .dmg, .zip
 #   and SHA256SUMS.txt.
 #
-# With these repository secrets the app and disk image are signed with a
-# Developer ID, notarized and stapled; without them the build is unsigned and
-# the release notes explain how to open it:
-#   MACOS_DEVELOPER_ID_P12           base64 of a .p12 with the "Developer ID Application" cert + key
-#   MACOS_DEVELOPER_ID_P12_PASSWORD  password of that .p12
-#   MACOS_NOTARY_APPLE_ID            Apple ID used for notarization
-#   MACOS_NOTARY_TEAM_ID             Developer Team ID
-#   MACOS_NOTARY_PASSWORD            app-specific password for that Apple ID
+# Signing, first match wins:
+# 1. Developer ID: the app and disk image are signed, notarized and stapled.
+#      MACOS_DEVELOPER_ID_P12           base64 of a .p12 with the "Developer ID Application" cert + key
+#      MACOS_DEVELOPER_ID_P12_PASSWORD  password of that .p12
+#      MACOS_NOTARY_APPLE_ID            Apple ID used for notarization
+#      MACOS_NOTARY_TEAM_ID             Developer Team ID
+#      MACOS_NOTARY_PASSWORD            app-specific password for that Apple ID
+# 2. Release certificate: self-signed and not notarized, but the identity stays
+#    the same across releases, so users keep the Accessibility grant when they
+#    update. Created by scripts/create-release-certificate.sh; the build fails
+#    unless it matches .github/release-signing-certificate.sha1.
+#      MACOS_SELF_SIGNED_P12            base64 of the .p12
+#      MACOS_SELF_SIGNED_P12_PASSWORD   password of that .p12
+# 3. Neither: ad-hoc, a new identity on every build.
+# The release notes say which one was used and how to open the app.
 name: Release
 
 on:
@@ -32,10 +39,12 @@ jobs:
     name: Build, test and package
     runs-on: macos-15
     outputs:
-      signed: ${{ steps.signing.outputs.signed }}
+      signing: ${{ steps.signing.outputs.mode }}
+      certificate: ${{ steps.identity.outputs.certificate }}
       version: ${{ steps.version.outputs.version }}
     env:
       DEVELOPER_ID_P12: ${{ secrets.MACOS_DEVELOPER_ID_P12 }}
+      SELF_SIGNED_P12: ${{ secrets.MACOS_SELF_SIGNED_P12 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -62,35 +71,66 @@ jobs:
           echo "BUILD_NUMBER=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Import Developer ID certificate
-        if: env.DEVELOPER_ID_P12 != ''
+      - name: Import signing certificate
+        id: signing
         env:
-          P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          SELF_SIGNED_P12_PASSWORD: ${{ secrets.MACOS_SELF_SIGNED_P12_PASSWORD }}
         run: |
+          if [ -n "$DEVELOPER_ID_P12" ]; then
+            MODE=developer-id P12="$DEVELOPER_ID_P12" P12_PASSWORD="$DEVELOPER_ID_P12_PASSWORD"
+          elif [ -n "$SELF_SIGNED_P12" ]; then
+            MODE=self-signed P12="$SELF_SIGNED_P12" P12_PASSWORD="$SELF_SIGNED_P12_PASSWORD"
+          else
+            echo "mode=ad-hoc" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
-          echo "$DEVELOPER_ID_P12" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security set-keychain-settings -lut 21600 "$KEYCHAIN"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
-          security import "$RUNNER_TEMP/developer-id.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security import "$RUNNER_TEMP/signing.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
-          rm "$RUNNER_TEMP/developer-id.p12"
-          IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -1)"
-          test -n "$IDENTITY" || { echo "::error::No Developer ID Application identity in the .p12"; exit 1; }
+          rm "$RUNNER_TEMP/signing.p12"
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+          if [ "$MODE" = developer-id ]; then
+            IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -1)"
+            test -n "$IDENTITY" || { echo "::error::No Developer ID Application identity in the .p12"; exit 1; }
+          else
+            # A self-signed certificate isn't trusted, so `find-identity -v` doesn't list it;
+            # codesign doesn't need trust. Sign by the certificate's SHA-1.
+            IDENTITY="$(security find-certificate -a -Z "$KEYCHAIN" | sed -n 's/^SHA-1 hash: //p' | head -1 | tr 'A-F' 'a-f')"
+            test -n "$IDENTITY" || { echo "::error::No certificate in MACOS_SELF_SIGNED_P12"; exit 1; }
+          fi
           echo "SIGN_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
-
-      - name: Signing status
-        id: signing
-        run: echo "signed=$([ -n "${SIGN_IDENTITY:-}" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
 
       - name: Bundle
         # bundle.sh signs ad-hoc when SIGN_IDENTITY is unset.
         run: bash scripts/bundle.sh
 
+      - name: Check release certificate
+        id: identity
+        if: steps.signing.outputs.mode == 'self-signed'
+        run: |
+          # The Accessibility grant follows this requirement. A different certificate would
+          # silently cost every user a new grant, so only the pinned one may ship.
+          PIN=.github/release-signing-certificate.sha1
+          test -f "$PIN" || { echo "::error::$PIN is missing. Run scripts/create-release-certificate.sh and commit it."; exit 1; }
+          EXPECTED="$(tr -d '[:space:]' < "$PIN")"
+          ACTUAL="$(codesign -d -r- Kosmodock.app 2>&1 | sed -n 's/.*certificate leaf = H"\([0-9a-f]*\)".*/\1/p')"
+          echo "Designated requirement: certificate leaf = H\"$ACTUAL\""
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Signed with certificate ${ACTUAL:-none}, but $PIN pins $EXPECTED. A new certificate makes every user grant Accessibility again. If that's intended, run scripts/create-release-certificate.sh --rotate and commit the new $PIN."
+            exit 1
+          fi
+          echo "certificate=$ACTUAL" >> "$GITHUB_OUTPUT"
+
       - name: Notarize app
-        if: steps.signing.outputs.signed == 'true'
+        if: steps.signing.outputs.mode == 'developer-id'
         env:
           NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
           NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
@@ -115,7 +155,7 @@ jobs:
           test -f "dist/Kosmodock-$VERSION.dmg"
 
       - name: Sign and notarize disk image
-        if: steps.signing.outputs.signed == 'true'
+        if: steps.signing.outputs.mode == 'developer-id'
         env:
           NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
           NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
@@ -138,6 +178,10 @@ jobs:
           path: dist/
           if-no-files-found: error
 
+      - name: Remove signing keychain
+        if: always() && env.SIGNING_KEYCHAIN != ''
+        run: security delete-keychain "$SIGNING_KEYCHAIN"
+
   release:
     name: Publish release
     needs: build
@@ -154,16 +198,20 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-          SIGNED: ${{ needs.build.outputs.signed }}
+          SIGNING: ${{ needs.build.outputs.signing }}
+          CERTIFICATE: ${{ needs.build.outputs.certificate }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
-          if [ "$SIGNED" = "true" ]; then
+          if [ "$SIGNING" = "developer-id" ]; then
             echo "Signed with a Developer ID and notarized by Apple." > notes.md
           else
             cat > notes.md <<'NOTES'
           > [!WARNING]
           > This build is **not notarized**. macOS blocks it the first time you open it: go to **System Settings → Privacy & Security → Open Anyway**, or run `xattr -dr com.apple.quarantine /Applications/Kosmodock.app`.
           NOTES
+          fi
+          if [ "$SIGNING" = "self-signed" ]; then
+            printf '\nSigned with the Kosmodock release certificate, the same for every release, so macOS keeps the Accessibility permission when you update. `codesign -dr - /Applications/Kosmodock.app` should end with `certificate leaf = H"%s"`.\n' "$CERTIFICATE" >> notes.md
           fi
           printf '\nVerify downloads with `shasum -a 256 -c SHA256SUMS.txt`.\n' >> notes.md
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" \

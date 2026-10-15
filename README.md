@@ -18,9 +18,9 @@ Requires macOS 14+ on Apple Silicon. Built with Swift 6.4, SwiftUI, AppKit, Mach
 
 Grab `Kosmodock-<version>.dmg` (or `.zip`) from [Releases](https://github.com/soaresnro/kosmodock/releases) and drag **Kosmodock** to `/Applications`.
 
-Builds signed with an Apple Developer ID and notarized open normally. A build that isn't notarized yet is stopped by Gatekeeper the first time you open it. Allow it once in **System Settings → Privacy & Security → Open Anyway**, or run `xattr -dr com.apple.quarantine /Applications/Kosmodock.app`. Every release lists its signing status and a `SHA256SUMS.txt`.
+Releases are signed with the **Kosmodock release certificate**, a self-signed certificate whose SHA-1 is pinned in [`.github/release-signing-certificate.sha1`](.github/release-signing-certificate.sha1). They aren't notarized by Apple yet, so Gatekeeper stops each downloaded version the first time you open it. Allow it once in **System Settings → Privacy & Security → Open Anyway**, or run `xattr -dr com.apple.quarantine /Applications/Kosmodock.app`. Every release lists its signing status and a `SHA256SUMS.txt`.
 
-On first launch, grant **Accessibility** when macOS asks (see [Permissions](#permissions)).
+On first launch, grant **Accessibility** when macOS asks (see [Permissions](#permissions)). Updates keep the grant, because every release carries the same signing identity. The exception is 1.0.0, which was signed ad-hoc: after updating from it, grant Accessibility once more.
 
 ### Build from source
 
@@ -75,7 +75,7 @@ swift build && .build/debug/Kosmodock --render-snapshots /tmp/kosmodock-snaps
 
 Accessibility is the **only** permission Kosmodock needs (System Settings → Privacy & Security → Accessibility). Tiling, keeping windows above the dock, and minimize-into-group all depend on it. Kosmodock asks once at launch; the popover, Settings → Permissions and the menu also have a *Grant Access* button. Screen Recording and Input Monitoring are not used.
 
-macOS ties the grant to the app's code signature. An ad-hoc signature (`codesign -s -`) changes on every build, so after a rebuild the switch in System Settings still looks on but belongs to the previous build. `scripts/setup-signing.sh` creates a self-signed **Kosmodock Local Signing** certificate in your login keychain, and `bundle.sh` uses it automatically. The identity then stays the same across builds, and so does the grant. `bash scripts/setup-signing.sh --remove` deletes it.
+macOS ties the grant to the app's code signature. An ad-hoc signature (`codesign -s -`) changes on every build, so after a rebuild the switch in System Settings still looks on but belongs to the previous build. `scripts/setup-signing.sh` creates a self-signed **Kosmodock Local Signing** certificate in your login keychain, and `bundle.sh` uses it automatically. The identity then stays the same across builds, and so does the grant. `bash scripts/setup-signing.sh --remove` deletes it. Downloaded releases use a different certificate, so macOS treats a release and your own build as different apps: switching between them means granting Accessibility again.
 
 **Switch is on but Kosmodock still asks?** The entry belongs to an older build. Reset it and grant again:
 
@@ -167,7 +167,13 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
 git tag v1.0.0 && git push origin v1.0.0
 ```
 
-With the repository secrets `MACOS_DEVELOPER_ID_P12` (base64 `.p12` with a *Developer ID Application* certificate), `MACOS_DEVELOPER_ID_P12_PASSWORD`, `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_TEAM_ID` and `MACOS_NOTARY_PASSWORD` (an app-specific password), the app and disk image are signed with the hardened runtime, notarized and stapled. Without them the release is unsigned, and its notes explain how to open it.
+How the release is signed depends on the repository secrets, first match wins:
+
+1. **Developer ID**: `MACOS_DEVELOPER_ID_P12` (base64 `.p12` with a *Developer ID Application* certificate), `MACOS_DEVELOPER_ID_P12_PASSWORD`, `MACOS_NOTARY_APPLE_ID`, `MACOS_NOTARY_TEAM_ID` and `MACOS_NOTARY_PASSWORD` (an app-specific password). The app and disk image are signed with the hardened runtime, notarized and stapled.
+2. **Release certificate**: `MACOS_SELF_SIGNED_P12` and `MACOS_SELF_SIGNED_P12_PASSWORD`, created once by `bash scripts/create-release-certificate.sh`. The script also keeps the identity in your login keychain as the backup and writes its SHA-1 to `.github/release-signing-certificate.sha1`. The workflow fails if a build's signature doesn't match that file, because a new certificate would make every user grant Accessibility again. Replacing it on purpose takes `--rotate` and a commit of the new file.
+3. **Neither**: an ad-hoc signature.
+
+Moving from one to another changes the app's identity, so users grant Accessibility once more after that update. The release notes say which signing was used and how to open the app.
 
 ## Languages
 
