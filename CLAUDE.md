@@ -65,7 +65,8 @@ Git workflow:
 **Windowing.**
 - `FloatingPanel` is a borderless `.nonactivatingPanel`. `isFloatingPanel` resets `level`, so it is set first; `constrainFrameRect` is overridden so Intellihide can slide the dock off-screen.
 - Panels are sized from measured SwiftUI content via preference keys (`MeasuredSizeKey`, `CapsuleFramesKey`): grow immediately, shrink only after the spring settles.
-- `DockRootView` uses `ViewThatFits` with a fixed, screen-derived proposal (`model.dockMaxWidth`), stepping down `DockDensity` (regular → compact → minimal → scrolling). Capsules then equalize width through `CapsuleContentWidthKey`.
+- `DockRootView` uses `ViewThatFits` with a fixed, screen-derived proposal (`model.dockMaxWidth`), stepping down `DockDensity` (regular → compact → minimal → scrolling). The `CapsuleRow` layout gives collapsed capsules the widest one's width, capped so the row still fits the screen.
+  - It's a `Layout` on purpose: `ViewThatFits` also measures candidates it doesn't show, and a width kept in `@State` and fed back through a preference goes stale in those, which left the dock stuck at a sparser density.
 - matchedGeometry ids include the density, because every `ViewThatFits` candidate stays in the view graph.
 
 **Coordinates.** AppKit rects are bottom-left origin; the Accessibility/Quartz API and `CGWindowList` are top-left origin of the primary display. `TilingEngine.accessibilityRect(fromCocoa:primaryScreenHeight:)` converts in both directions. `TilingEngine` is pure layout math in top-left space, which is why its tests read top-down.
