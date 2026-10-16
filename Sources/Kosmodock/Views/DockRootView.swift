@@ -12,12 +12,64 @@ struct CapsuleFramesKey: PreferenceKey {
     }
 }
 
-/// Widest natural capsule content in a bar, so every capsule can match it.
-struct CapsuleContentWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
+/// Marks the subviews `CapsuleRow` gives a common width: collapsed capsules.
+struct EqualizesWidthKey: LayoutValueKey {
+    static let defaultValue = false
+}
 
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
+/// A row that gives every collapsed capsule the widest one's width, or as
+/// close to it as `maxWidth` allows. A `Layout` instead of a width measured
+/// into `@State`: `ViewThatFits` measures the candidates it isn't showing
+/// too, and state they never render would keep an old width, leaving the
+/// dock stuck at a sparser density after the content shrinks.
+struct CapsuleRow: Layout {
+    var spacing: CGFloat
+    /// Width the row should stay within, while it can.
+    var maxWidth: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let widths = Self.widths(natural: sizes.map(\.width), equalized: subviews.map { $0[EqualizesWidthKey.self] }, spacing: spacing, maxWidth: maxWidth)
+        return CGSize(
+            width: widths.reduce(0, +) + spacing * CGFloat(max(0, subviews.count - 1)),
+            height: sizes.map(\.height).max() ?? 0
+        )
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let widths = Self.widths(natural: sizes.map(\.width), equalized: subviews.map { $0[EqualizesWidthKey.self] }, spacing: spacing, maxWidth: maxWidth)
+        var x = bounds.minX
+        for index in subviews.indices {
+            subviews[index].place(
+                at: CGPoint(x: x, y: bounds.midY), anchor: .leading,
+                proposal: ProposedViewSize(width: widths[index], height: sizes[index].height)
+            )
+            x += widths[index] + spacing
+        }
+    }
+
+    /// Equalized subviews take a common width: the widest one's, lowered until
+    /// the row fits `maxWidth`, but never below a subview's own width. Without
+    /// the limit, one wide badge times every capsule would push the dock to a
+    /// density that hides all badges. If even the natural widths don't fit,
+    /// they're fully equalized: the row is too wide either way.
+    static func widths(natural: [CGFloat], equalized: [Bool], spacing: CGFloat, maxWidth: CGFloat) -> [CGFloat] {
+        let shared = natural.indices.filter { equalized[$0] }.map { natural[$0] }.sorted()
+        guard var level = shared.last else { return natural }
+        let fixed = natural.indices.filter { !equalized[$0] }.reduce(0) { $0 + natural[$1] }
+        let budget = maxWidth - fixed - spacing * CGFloat(max(0, natural.count - 1))
+        if level * CGFloat(shared.count) > budget, shared.reduce(0, +) <= budget {
+            // Raise the k narrowest to `level` and keep the rest: the first k
+            // whose level stays below the next width solves it.
+            var rest = shared.reduce(0, +)
+            for k in 1...shared.count {
+                rest -= shared[k - 1]
+                level = ((budget - rest) / CGFloat(k)).rounded(.down)
+                if k == shared.count || level <= shared[k] { break }
+            }
+        }
+        return natural.indices.map { equalized[$0] ? max(natural[$0], level) : natural[$0] }
     }
 }
 
@@ -86,7 +138,9 @@ struct DockBar: View {
     let namespace: Namespace.ID
     let maxWidth: CGFloat
     let scrolls: Bool
-    @ViewState private var capsuleWidth: CGFloat = 0
+
+    /// The bar's horizontal padding, which `CapsuleRow` leaves out of `maxWidth`.
+    private static let padding: CGFloat = 7
 
     var body: some View {
         let shape = CGFloat(model.theme.cornerRadius)
@@ -109,9 +163,9 @@ struct DockBar: View {
     }
 
     private var content: some View {
-        HStack(alignment: .center, spacing: density == .minimal ? 4 : 6) {
+        CapsuleRow(spacing: density == .minimal ? 4 : 6, maxWidth: maxWidth - Self.padding * 2) {
             ForEach(model.config.groups) { group in
-                GroupCapsuleView(group: group, density: density, namespace: namespace, uniformWidth: capsuleWidth)
+                GroupCapsuleView(group: group, density: density, namespace: namespace)
                     .background {
                         GeometryReader { proxy in
                             Color.clear.preference(
@@ -120,19 +174,15 @@ struct DockBar: View {
                             )
                         }
                     }
+                    .layoutValue(key: EqualizesWidthKey.self, value: model.expandedGroupID != group.id)
             }
             if model.config.groups.isEmpty {
                 EmptyDockHint()
             }
             DockUtilityButton()
         }
-        .padding(.horizontal, 7)
+        .padding(.horizontal, Self.padding)
         .padding(.vertical, 6)
-        .onPreferenceChange(CapsuleContentWidthKey.self) { width in
-            MainActor.assumeIsolated {
-                if abs(width - capsuleWidth) > 0.5 { capsuleWidth = width }
-            }
-        }
     }
 }
 

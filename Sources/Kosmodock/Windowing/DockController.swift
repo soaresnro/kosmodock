@@ -169,7 +169,7 @@ final class DockController {
     /// animate inside the old bounds).
     private func barSizeDidChange(_ barSize: CGSize) {
         if model.expandedGroupID == nil { geometry.restingBarHeight = barSize.height }
-        let target = CGSize(width: ceil(barSize.width + inset * 2), height: ceil(barSize.height + inset * 2))
+        let target = panelSize(forBar: barSize)
         dockShrinkTask?.cancel()
         guard hasPlacedDock else {
             placeDock(size: target)
@@ -182,10 +182,16 @@ final class DockController {
             let delay = shrinkDelay
             dockShrinkTask = Task { [weak self] in
                 try? await Task.sleep(for: delay)
-                guard !Task.isCancelled else { return }
-                self?.placeDock(size: target)
+                guard !Task.isCancelled, let self else { return }
+                // The latest measurement, not `target`: the panel must end up
+                // matching the bar it shows, or the bar's ends are cut off.
+                self.placeDock(size: self.panelSize(forBar: self.geometry.barSize))
             }
         }
+    }
+
+    private func panelSize(forBar barSize: CGSize) -> CGSize {
+        CGSize(width: ceil(barSize.width + inset * 2), height: ceil(barSize.height + inset * 2))
     }
 
     private func placeDock(size: CGSize) {

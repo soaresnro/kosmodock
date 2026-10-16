@@ -8,8 +8,6 @@ struct GroupCapsuleView: View {
     let group: DockGroup
     var density: DockDensity = .regular
     let namespace: Namespace.ID
-    /// Content width shared by every collapsed capsule in the bar.
-    var uniformWidth: CGFloat = 0
     @ViewState private var isHovering = false
     @ViewState private var isPulsing = false
 
@@ -38,14 +36,8 @@ struct GroupCapsuleView: View {
                 }
             }
         }
-        // Measure the natural width first, then adopt the bar-wide width, so
-        // every collapsed capsule has the same size.
-        .background {
-            GeometryReader { proxy in
-                Color.clear.preference(key: CapsuleContentWidthKey.self, value: isExpanded ? 0 : proxy.size.width)
-            }
-        }
-        .frame(minWidth: isExpanded ? nil : uniformWidth, alignment: .leading)
+        // Collapsed, fill the width `CapsuleRow` proposes, so capsules match.
+        .frame(maxWidth: isExpanded ? nil : .infinity, alignment: .leading)
         .padding(.leading, 7)
         .padding(.trailing, density == .minimal ? 7 : 10)
         .padding(.vertical, 6)

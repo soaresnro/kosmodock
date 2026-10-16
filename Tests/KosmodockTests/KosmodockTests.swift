@@ -506,3 +506,50 @@ final class BadgeWidthTests: XCTestCase {
         XCTAssertTrue(badge.addingMemory(gib).reserve.allSatisfy { $0.hasPrefix("🦭 VM Stopped • ") })
     }
 }
+
+/// Collapsed capsules share the widest one's width, as far as the screen allows.
+@MainActor
+final class CapsuleRowTests: XCTestCase {
+    private func widths(_ natural: [CGFloat], equalized: [Bool]? = nil, maxWidth: CGFloat) -> [CGFloat] {
+        CapsuleRow.widths(natural: natural, equalized: equalized ?? natural.map { _ in true }, spacing: 0, maxWidth: maxWidth)
+    }
+
+    func testCapsulesTakeTheWidestWidthWhenItFits() {
+        XCTAssertEqual(widths([100, 60, 80], maxWidth: 1000), [100, 100, 100])
+    }
+
+    func testNarrowCapsulesWidenOnlyAsFarAsTheRowFits() {
+        // Fully equal would be 360 + 30; the 300 left for capsules lifts the
+        // two narrow ones to 90 and leaves the widest as it is.
+        let result = widths([120, 60, 80, 30], equalized: [true, true, true, false], maxWidth: 330)
+        XCTAssertEqual(result, [120, 90, 90, 30])
+        XCTAssertEqual(result.reduce(0, +), 330)
+    }
+
+    func testRowThatCannotFitIsFullyEqualized() {
+        XCTAssertEqual(widths([120, 60, 80], maxWidth: 200), [120, 120, 120])
+    }
+
+    func testSpacingAndUnequalizedViewsCountAgainstTheWidth() {
+        let result = CapsuleRow.widths(natural: [50, 20, 30], equalized: [true, true, false], spacing: 10, maxWidth: 140)
+        XCTAssertEqual(result, [50, 40, 30])
+        XCTAssertEqual(CapsuleRow.widths(natural: [50, 20], equalized: [false, false], spacing: 10, maxWidth: 10), [50, 20])
+    }
+
+    /// One wide badge used to widen every capsule past the screen, and the
+    /// dock fell back to the density that shows no badges at all.
+    func testWideCapsuleDoesNotPushTheRowToTheFallback() {
+        let row = CapsuleRow(spacing: 0, maxWidth: 200) {
+            Color.clear.frame(width: 80, height: 10).frame(maxWidth: .infinity).layoutValue(key: EqualizesWidthKey.self, value: true)
+            Color.clear.frame(width: 40, height: 10).frame(maxWidth: .infinity).layoutValue(key: EqualizesWidthKey.self, value: true)
+            Color.clear.frame(width: 40, height: 10).frame(maxWidth: .infinity).layoutValue(key: EqualizesWidthKey.self, value: true)
+        }
+        let fits = ViewThatFits(in: .horizontal) {
+            row.fixedSize()
+            Color.clear.frame(width: 10, height: 99)
+        }
+        .frame(width: 200)
+        XCTAssertEqual(NSHostingView(rootView: row.fixedSize()).fittingSize.width, 200)
+        XCTAssertEqual(NSHostingView(rootView: fits).fittingSize.height, 10)
+    }
+}
