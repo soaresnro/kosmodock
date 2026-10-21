@@ -41,6 +41,10 @@ enum SnapshotRenderer {
         }
         model.telemetry.start()
         model.containers.setEnabled(true)
+        // Folder stacks, kept off UserDefaults: what arrived today is new.
+        model.folderStacks.seen = FolderSeenStore(defaults: nil)
+        for folder in model.config.folders { model.folderStacks.seen.markSeen(folder.id, at: Date().addingTimeInterval(-86_400)) }
+        model.startDockItems()
         try? await Task.sleep(for: .seconds(7))
 
         injectSampleMinimizedWindows(into: model)
@@ -58,6 +62,17 @@ enum SnapshotRenderer {
         write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock-tiles-square", in: directory)
         model.configService.preview { $0.tiles = tiles }
         write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock", in: directory)
+        let folders = model.config.folders
+        for folder in folders {
+            for layout in FolderLayout.allCases {
+                model.configService.preview { config in
+                    guard let index = config.folders.firstIndex(where: { $0.id == folder.id }) else { return }
+                    config.folders[index].layout = layout
+                }
+                write(FolderStackPopoverView(folderID: folder.id).fixedSize(), model: model, proposed: nil, name: "popover-folder-\(folder.id)-\(layout.rawValue)", in: directory)
+            }
+        }
+        model.configService.preview { $0.folders = folders }
 
         let theme = model.config.theme
         for style in DockStyle.allCases {

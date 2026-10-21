@@ -20,12 +20,15 @@ enum BarItem: Identifiable {
     case group(DockGroup)
     case app(DockApp)
     case tile(DockTile)
+    /// Folders, the Trash and spacers (`DockItems.swift`).
+    case extra(BarExtra)
 
     var id: String {
         switch self {
         case .group(let group): group.id
         case .app(let app): DockConfig.itemID(forPinned: app)
         case .tile(let tile): DockConfig.itemID(for: tile)
+        case .extra(let extra): extra.id
         }
     }
 }
@@ -54,6 +57,10 @@ final class AppModel {
     /// The app's own Dock menu items, for right clicks on app icons.
     let dockMenus: DockMenuService
     let workspaceSwitcher = WorkspaceSwitcher()
+    let folderStacks = FolderStackService()
+    let trash = TrashService()
+    /// The bar before the last edit (`editBar`), for "Undo Last Dock Change".
+    var dockUndo = DockBarUndo()
 
     /// Group expanded inline in accordion mode.
     var expandedGroupID: String?
@@ -98,6 +105,7 @@ final class AppModel {
         containers.setEnabled(Self.needsContainerMonitor(config))
         updateAppWidgetServices()
         startWorkspaces()
+        startDockItems()
         windows.startMonitoringTrust()
         systemDock.reconcile(wantsSuppressed: config.behavior.suppressNativeDock)
         applyWindowBehavior()
@@ -117,6 +125,7 @@ final class AppModel {
         }
         axHub.stop()
         dockBadges.setActive(false)
+        stopDockItems()
         configService.backUp()
     }
 
@@ -220,12 +229,7 @@ final class AppModel {
 
     /// Everything on the bar, in order.
     var barItems: [BarItem] {
-        let config = config
-        var items: [String: BarItem] = [:]
-        for group in config.groups { items[group.id] = .group(group) }
-        for app in config.pinnedApps { items[DockConfig.itemID(forPinned: app)] = .app(app) }
-        for tile in config.tiles { items[DockConfig.itemID(for: tile)] = .tile(tile) }
-        return config.barOrder.compactMap { items[$0] }
+        barItems(for: config.barOrder) + trailingBarItems
     }
 
     func tint(for group: DockGroup) -> Color {
@@ -386,6 +390,11 @@ final class AppModel {
 
     func refreshTelemetry(for itemID: String) {
         telemetry.refreshNow()
+        // A folder's popover opened: what it shows now has been seen.
+        if let folder = folder(itemID: itemID) {
+            folderStacks.didOpen(folder.id)
+            return
+        }
         if let tile = tile(itemID: itemID) {
             switch tile.kind {
             case .command: telemetry.runCommandNow(for: tile)
@@ -554,14 +563,14 @@ final class AppModel {
     @discardableResult
     func addGroup() -> String {
         let id = "group-\(UUID().uuidString.prefix(6).lowercased())"
-        configService.update { config in
+        editBar { config in
             config.addToBar { $0.groups.append(DockGroup(id: id, name: L10n.tr("New Group"), symbol: "square.stack.3d.up.fill", widget: WidgetConfig(type: .cpuRam))) }
         }
         return id
     }
 
     func deleteGroup(id: String) {
-        configService.update { config in
+        editBar { config in
             config.groups.removeAll { $0.id == id }
             config.removeFromBar(id)
         }
@@ -572,7 +581,7 @@ final class AppModel {
 
     /// Offsets are among the groups in bar order (the sidebar's list).
     func moveGroups(fromOffsets source: IndexSet, toOffset destination: Int) {
-        configService.update { $0.moveGroups(fromOffsets: source, toOffset: destination) }
+        editBar { $0.moveGroups(fromOffsets: source, toOffset: destination) }
     }
 
     /// Groups in bar order, then the ones the active workspace hides.
@@ -581,17 +590,17 @@ final class AppModel {
     }
 
     func moveBarItems(fromOffsets source: IndexSet, toOffset destination: Int) {
-        configService.update { $0.moveBarItems(fromOffsets: source, toOffset: destination) }
+        editBar { $0.moveBarItems(fromOffsets: source, toOffset: destination) }
     }
 
     func moveBarItem(id: String, by offset: Int) {
-        configService.update { $0.moveBarItem(id, by: offset) }
+        editBar { $0.moveBarItem(id, by: offset) }
     }
 
     /// Adds an app to the bar as a plain icon, at the end; an app already
     /// pinned stays where it is.
     func pinApp(_ app: DockApp) {
-        configService.update { config in
+        editBar { config in
             guard !config.pinnedApps.contains(where: { $0.id == app.id }) else {
                 config.showInActiveWorkspace(DockConfig.itemID(forPinned: app))
                 return
@@ -601,7 +610,7 @@ final class AppModel {
     }
 
     func unpinApp(itemID: String) {
-        configService.update { config in
+        editBar { config in
             config.pinnedApps.removeAll { DockConfig.itemID(forPinned: $0) == itemID }
             config.removeFromBar(itemID)
         }
@@ -631,14 +640,14 @@ final class AppModel {
             tile.command = "uptime | sed 's/.*up \\([^,]*\\),.*/\\1/'"
             tile.interval = 60
         }
-        configService.update { config in
+        editBar { config in
             config.addToBar { $0.tiles = DockConfig.normalizedTileIDs($0.tiles + [tile]) }
         }
         return config.tiles.last?.id ?? tile.id
     }
 
     func deleteTile(id: String) {
-        configService.update { config in
+        editBar { config in
             config.removeFromBar("tile:\(id)")
             config.tiles.removeAll { $0.id == id }
         }
@@ -681,7 +690,8 @@ final class AppModel {
             expandedGroupID = nil
         }
         if let id = popoverItemID, !new.groups.contains(where: { $0.id == id }),
-           !new.tiles.contains(where: { DockConfig.itemID(for: $0) == id }) {
+           !new.tiles.contains(where: { DockConfig.itemID(for: $0) == id }),
+           !new.folders.contains(where: { DockConfig.itemID(for: $0) == id }) {
             dismissPopover?()
         }
     }

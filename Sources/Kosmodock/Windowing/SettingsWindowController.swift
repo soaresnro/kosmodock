@@ -102,6 +102,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let behavior = model.config.behavior
 
         menu.addItem(item(L10n.tr("Kosmodock Settings…"), #selector(openSettings), key: ","))
+        menu.addItem(DockUndoCommand.menuItem(model: model))
         menu.addItem(.separator())
         for workspaceItem in WorkspaceMenu.items(model: model) { menu.addItem(workspaceItem) }
 

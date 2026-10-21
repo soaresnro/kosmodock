@@ -96,7 +96,7 @@ extension AppModel {
     @discardableResult
     func addWorkspace() -> String {
         var id = ""
-        configService.update { config in
+        editBar { config in
             id = config.addWorkspace(name: config.workspaces.isEmpty ? L10n.mainWorkspace : L10n.newWorkspace)
         }
         return id
@@ -110,14 +110,14 @@ extension AppModel {
         if config.activeWorkspace?.id == id {
             activateWorkspace(id: index + 1 < ids.count ? ids[index + 1] : ids[index - 1])
         }
-        configService.update { $0.deleteWorkspace(id: id) }
+        editBar { $0.deleteWorkspace(id: id) }
     }
 
     /// Back to one bar with everything on it; apps Kosmodock hid come back.
     func useSingleDock() {
         perform(WorkspaceSwitch.Plan(unhide: workspaceSwitcher.hiddenApps))
         workspaceSwitcher.hiddenApps = []
-        configService.update { $0.useSingleDock() }
+        editBar { $0.useSingleDock() }
     }
 
     func moveWorkspaces(fromOffsets source: IndexSet, toOffset destination: Int) {
@@ -149,11 +149,11 @@ extension AppModel {
     }
 
     func setItem(_ itemID: String, included: Bool, inWorkspace workspaceID: String) {
-        configService.update { $0.setItem(itemID, included: included, inWorkspace: workspaceID) }
+        editBar { $0.setItem(itemID, included: included, inWorkspace: workspaceID) }
     }
 
     func moveItem(_ itemID: String, by offset: Int, inWorkspace workspaceID: String) {
-        configService.update { $0.moveItem(itemID, by: offset, inWorkspace: workspaceID) }
+        editBar { $0.moveItem(itemID, by: offset, inWorkspace: workspaceID) }
     }
 
     // MARK: Bar items
@@ -165,6 +165,7 @@ extension AppModel {
         for group in config.groups { items[group.id] = .group(group) }
         for app in config.pinnedApps { items[DockConfig.itemID(forPinned: app)] = .app(app) }
         for tile in config.tiles { items[DockConfig.itemID(for: tile)] = .tile(tile) }
+        items.merge(extraBarItems(in: config)) { $1 }
         return ids.compactMap { items[$0] }
     }
 

@@ -434,7 +434,8 @@ private struct DockLayoutSettingsView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        let items = model.barItems
+        // The Trash, always last, gets its own row.
+        let items = model.barItems(for: model.config.barOrder)
         VStack(alignment: .leading, spacing: 0) {
             WorkspaceDockHeader()
             HStack(spacing: 10) {
@@ -462,15 +463,18 @@ private struct DockLayoutSettingsView: View {
                     Label("Add Widget", systemImage: "square.grid.2x2")
                 }
                 .fixedSize()
+                AddDockItemMenu()
                 Spacer()
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
+            DockItemsSettingsBar()
             List {
                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                     DockItemRow(item: item, isFirst: index == 0, isLast: index == items.count - 1)
                 }
                 .onMove { model.moveBarItems(fromOffsets: $0, toOffset: $1) }
+                TrashSettingsRow()
                 WorkspaceOtherItemsSection()
             }
             .listStyle(.inset(alternatesRowBackgrounds: true))
@@ -536,6 +540,8 @@ private struct DockItemRow: View {
                         .help("Edit Widgets…")
                     Button(role: .destructive) { model.deleteTile(id: tile.id) } label: { Label("Remove from Dock", systemImage: "trash") }
                         .help("Remove from Dock")
+                case .extra(let extra):
+                    BarExtraRowButtons(extra: extra)
                 }
             }
             .labelStyle(.iconOnly)
@@ -549,6 +555,7 @@ private struct DockItemRow: View {
         case .group(let group): GroupGlyph(symbol: group.symbol, tint: model.tint(for: group), size: 24)
         case .app(let app): AppIconView(app: app, size: 26, showsIndicator: false, badgeStyle: .hidden)
         case .tile(let tile): GroupGlyph(symbol: tile.kind.symbol, tint: model.accent, size: 24)
+        case .extra(let extra): BarExtraIcon(extra: extra, size: 26)
         }
     }
 
@@ -557,6 +564,7 @@ private struct DockItemRow: View {
         case .group(let group): group.name
         case .app(let app): model.workspace.displayName(for: app)
         case .tile(let tile): tile.title
+        case .extra(let extra): extra.title
         }
     }
 
@@ -565,6 +573,7 @@ private struct DockItemRow: View {
         case .group(let group): group.apps.count == 1 ? L10n.tr("Group · 1 app") : L10n.tr("Group · %lld apps", group.apps.count)
         case .app: L10n.tr("App")
         case .tile(let tile): L10n.tr("Widget · %@", tile.width.title)
+        case .extra(let extra): extra.subtitle
         }
     }
 }

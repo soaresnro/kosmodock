@@ -39,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let settings = SettingsWindowController(model: model)
         model.openSettingsHandler = { [weak settings] section in settings?.show(section: section) }
         let statusItem = StatusItemController(model: model)
+        DockUndoCommand.installInMainMenu(model: model)
 
         dockController = dock
         settingsController = settings
