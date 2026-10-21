@@ -292,11 +292,12 @@ private struct AppTile: View {
             VStack(spacing: 5) {
                 AppIconView(app: app, size: 42, tint: tint)
                     .scaleEffect(isHovering && model.theme.hoverEffect == .magnify ? 1.18 : 1, anchor: .bottom)
-                    .overlay(alignment: .topTrailing) {
+                    // Bottom-trailing: the top-trailing corner holds the notification badge.
+                    .overlay(alignment: .bottomTrailing) {
                         let minimized = model.workspace.bundleID(for: app)
                             .map { model.minimizedWindows.windows(forBundleID: $0).count } ?? 0
                         if minimized > 0 {
-                            MinimizedBadge(count: minimized).offset(x: 6, y: -4)
+                            MinimizedBadge(count: minimized).offset(x: 6, y: 3)
                         }
                     }
                     .padding(.bottom, 2)
@@ -376,7 +377,7 @@ private struct MinimizedWindowRow: View {
             model.restore(window)
         } label: {
             HStack(spacing: 9) {
-                AppIconView(app: app, size: 22, showsIndicator: false)
+                AppIconView(app: app, size: 22, showsIndicator: false, badgeStyle: .hidden)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(window.title.isEmpty ? appName : window.title)
                         .font(.system(size: 11.5, weight: .semibold))

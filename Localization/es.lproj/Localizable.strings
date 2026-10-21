@@ -434,3 +434,8 @@
 "🦭 Not installed" = "🦭 No instalado";
 "🦭 Starting…" = "🦭 Iniciando…";
 "🦭 VM Stopped" = "🦭 VM detenida";
+
+/* Notification badges */
+"Notifications" = "Notificaciones";
+"Show notification badges" = "Mostrar globos de notificación";
+"Unread counts and dots on app icons, read from the macOS Dock, which keeps running while hidden. Needs Accessibility access." = "Contadores de no leídos y puntos en los iconos de las apps, leídos del Dock de macOS, que sigue funcionando aunque esté oculto. Necesita acceso de Accesibilidad.";

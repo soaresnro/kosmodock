@@ -232,7 +232,7 @@ private struct GroupEditorView: View {
                 }
                 ForEach(Array(current.apps.enumerated()), id: \.element.id) { index, app in
                     HStack(spacing: 10) {
-                        AppIconView(app: app, size: 24, showsIndicator: false)
+                        AppIconView(app: app, size: 24, showsIndicator: false, badgeStyle: .hidden)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(model.workspace.displayName(for: app))
                             Text(app.path ?? app.bundleId ?? "")
@@ -539,7 +539,7 @@ private struct DockItemRow: View {
     @ViewBuilder private var icon: some View {
         switch item {
         case .group(let group): GroupGlyph(symbol: group.symbol, tint: model.tint(for: group), size: 24)
-        case .app(let app): AppIconView(app: app, size: 26, showsIndicator: false)
+        case .app(let app): AppIconView(app: app, size: 26, showsIndicator: false, badgeStyle: .hidden)
         case .tile(let tile): GroupGlyph(symbol: tile.kind.symbol, tint: model.accent, size: 24)
         }
     }
@@ -1080,6 +1080,19 @@ private struct BehaviorSettingsView: View {
                 .disabled(!model.config.behavior.minimizeToGroups)
             } header: {
                 Text("Minimize")
+            }
+            Section {
+                Toggle(isOn: model.binding(\.behavior.showsNotificationBadges)) {
+                    Text("Show notification badges")
+                    Text("Unread counts and dots on app icons, read from the macOS Dock, which keeps running while hidden. Needs Accessibility access.")
+                }
+                if model.config.behavior.showsNotificationBadges, !model.windows.isTrusted {
+                    Label("Needs Accessibility access (Permissions)", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(HealthLevel.warning.color)
+                        .font(.caption)
+                }
+            } header: {
+                Text("Notifications")
             }
             Section {
                 Toggle(isOn: model.binding(\.behavior.suppressNativeDock)) {

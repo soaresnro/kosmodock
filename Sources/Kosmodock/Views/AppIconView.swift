@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Real app icon, dimmed when hidden, with the running indicator under it and
-/// the launch animation while the app starts.
+/// Real app icon, dimmed when hidden, with the running indicator under it,
+/// its notification badge, and the launch animation while the app starts.
 struct AppIconView: View {
     @Environment(AppModel.self) private var model
     let app: DockApp
@@ -9,6 +9,7 @@ struct AppIconView: View {
     var showsIndicator = true
     /// The group's tint, for `IndicatorColor.group`.
     var tint: Color?
+    var badgeStyle: NotificationBadge.Style = .full
 
     var body: some View {
         let state = model.workspace.state(for: app)
@@ -19,6 +20,7 @@ struct AppIconView: View {
             .aspectRatio(contentMode: .fit)
             .frame(width: size, height: size)
             .opacity(state?.isHidden == true ? 0.55 : 1)
+            .modifier(NotificationBadge(label: badgeStyle == .hidden ? nil : model.notificationBadge(for: app), iconSize: size, style: badgeStyle))
             .modifier(LaunchMotion(animation: model.workspace.isLaunching(app) ? theme.launchAnimation : .none, size: size))
             .overlay(alignment: .bottom) {
                 if showsIndicator, let state {
