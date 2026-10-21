@@ -150,8 +150,10 @@ struct DockRootView: View {
     var body: some View {
         let maxWidth = model.dockMaxWidth
         ViewThatFits(in: .horizontal) {
-            // Tiles go square before capsules lose detail.
+            // Capsules give up a mini icon before wide tiles go square (they
+            // were chosen wide), and tiles go square before capsules lose detail.
             DockBar(density: .regular, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
+            DockBar(density: .regular, fewerMiniIcons: true, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
             DockBar(density: .regular, squareTiles: true, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
             DockBar(density: .compact, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
             DockBar(density: .compact, squareTiles: true, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
@@ -177,6 +179,8 @@ struct DockBar: View {
     let density: DockDensity
     /// Wide tiles drawn square, a step before the next density.
     var squareTiles = false
+    /// One mini icon less per capsule, a step before squaring tiles.
+    var fewerMiniIcons = false
     let namespace: Namespace.ID
     let maxWidth: CGFloat
     let scrolls: Bool
@@ -218,7 +222,10 @@ struct DockBar: View {
                 Group {
                     switch item {
                     case .group(let group):
-                        GroupCapsuleView(group: group, density: density, variant: squareTiles ? 1 : 0, namespace: namespace)
+                        GroupCapsuleView(
+                            group: group, density: density, variant: squareTiles ? 1 : fewerMiniIcons ? 2 : 0,
+                            maxMiniIcons: fewerMiniIcons ? density.miniIconLimit - 1 : nil, namespace: namespace
+                        )
                     case .app(let app):
                         PinnedAppView(app: app, density: density)
                     case .tile(let tile):
