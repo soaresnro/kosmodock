@@ -12,6 +12,7 @@ enum SettingsSection: Hashable {
     case config
     case tiles
     case dock
+    case workspaces
 }
 
 /// One item on the bar.
@@ -50,6 +51,7 @@ final class AppModel {
     let enforcer: BottomMarginEnforcer
     let minimizedWindows: MinimizedWindowTracker
     let dockBadges: DockBadgeService
+    let workspaceSwitcher = WorkspaceSwitcher()
 
     /// Group expanded inline in accordion mode.
     var expandedGroupID: String?
@@ -92,6 +94,7 @@ final class AppModel {
         telemetry.start()
         containers.setEnabled(Self.needsContainerMonitor(config))
         updateAppWidgetServices()
+        startWorkspaces()
         windows.startMonitoringTrust()
         systemDock.reconcile(wantsSuppressed: config.behavior.suppressNativeDock)
         applyWindowBehavior()
@@ -168,13 +171,19 @@ final class AppModel {
         pulseTokens[groupID, default: 0] += 1
     }
 
-    /// Group (or pinned app) that owns `bundleID`, falling back to the general group.
+    /// Group (or pinned app) that owns `bundleID`, falling back to the general
+    /// group. What the bar shows comes first: a workspace may hide the rest.
     func groupID(forBundleID bundleID: String) -> String? {
-        let groups = config.groups.map { group in
+        groupID(forBundleID: bundleID, among: Set(config.barOrder)) ?? groupID(forBundleID: bundleID, among: nil)
+    }
+
+    /// `itemIDs` limits the search to those items.
+    private func groupID(forBundleID bundleID: String, among itemIDs: Set<String>?) -> String? {
+        let groups = config.groups.filter { itemIDs?.contains($0.id) ?? true }.map { group in
             (id: group.id, name: group.name, bundleIDs: Set(group.apps.compactMap(workspace.bundleID(for:))))
         }
         var pinned: [String: String] = [:]
-        for app in config.pinnedApps {
+        for app in config.pinnedApps where itemIDs?.contains(DockConfig.itemID(forPinned: app)) ?? true {
             if let id = workspace.bundleID(for: app) { pinned[id] = DockConfig.itemID(forPinned: app) }
         }
         return GroupResolver.groupID(for: bundleID, groups: groups, pinned: pinned)
@@ -543,8 +552,7 @@ final class AppModel {
     func addGroup() -> String {
         let id = "group-\(UUID().uuidString.prefix(6).lowercased())"
         configService.update { config in
-            config.settleOrder()
-            config.groups.append(DockGroup(id: id, name: L10n.tr("New Group"), symbol: "square.stack.3d.up.fill", widget: WidgetConfig(type: .cpuRam)))
+            config.addToBar { $0.groups.append(DockGroup(id: id, name: L10n.tr("New Group"), symbol: "square.stack.3d.up.fill", widget: WidgetConfig(type: .cpuRam))) }
         }
         return id
     }
@@ -552,7 +560,7 @@ final class AppModel {
     func deleteGroup(id: String) {
         configService.update { config in
             config.groups.removeAll { $0.id == id }
-            config.order.removeAll { $0 == id }
+            config.removeFromBar(id)
         }
         if case .group(id) = settingsSelection {
             settingsSelection = config.groups.first.map { .group($0.id) } ?? .appearance
@@ -564,9 +572,9 @@ final class AppModel {
         configService.update { $0.moveGroups(fromOffsets: source, toOffset: destination) }
     }
 
-    /// Groups in bar order.
+    /// Groups in bar order, then the ones the active workspace hides.
     var orderedGroups: [DockGroup] {
-        barItems.compactMap { if case .group(let group) = $0 { group } else { nil } }
+        config.sidebarGroupIDs.compactMap(group(id:))
     }
 
     func moveBarItems(fromOffsets source: IndexSet, toOffset destination: Int) {
@@ -581,16 +589,18 @@ final class AppModel {
     /// pinned stays where it is.
     func pinApp(_ app: DockApp) {
         configService.update { config in
-            guard !config.pinnedApps.contains(where: { $0.id == app.id }) else { return }
-            config.settleOrder()
-            config.pinnedApps.append(app)
+            guard !config.pinnedApps.contains(where: { $0.id == app.id }) else {
+                config.showInActiveWorkspace(DockConfig.itemID(forPinned: app))
+                return
+            }
+            config.addToBar { $0.pinnedApps.append(app) }
         }
     }
 
     func unpinApp(itemID: String) {
         configService.update { config in
             config.pinnedApps.removeAll { DockConfig.itemID(forPinned: $0) == itemID }
-            config.order.removeAll { $0 == itemID }
+            config.removeFromBar(itemID)
         }
     }
 
@@ -619,15 +629,14 @@ final class AppModel {
             tile.interval = 60
         }
         configService.update { config in
-            config.settleOrder()
-            config.tiles = DockConfig.normalizedTileIDs(config.tiles + [tile])
+            config.addToBar { $0.tiles = DockConfig.normalizedTileIDs($0.tiles + [tile]) }
         }
         return config.tiles.last?.id ?? tile.id
     }
 
     func deleteTile(id: String) {
         configService.update { config in
-            config.order.removeAll { $0 == "tile:\(id)" }
+            config.removeFromBar("tile:\(id)")
             config.tiles.removeAll { $0.id == id }
         }
     }

@@ -28,6 +28,7 @@ struct SettingsView: View {
                 ContentUnavailableView("Select a group", systemImage: "square.stack.3d.up")
             }
         case .dock: DockLayoutSettingsView()
+        case .workspaces: WorkspacesSettingsView()
         case .appearance: AppearanceSettingsView()
         case .tiles: TilesSettingsView()
         case .behavior: BehaviorSettingsView()
@@ -48,6 +49,7 @@ private struct SettingsSidebar: View {
         List(selection: $selection) {
             Section {
                 Label("Dock", systemImage: "dock.rectangle").tag(SettingsSection.dock)
+                Label("Workspaces", systemImage: "rectangle.stack").tag(SettingsSection.workspaces)
             }
             Section("Dock Groups") {
                 ForEach(model.orderedGroups) { group in
@@ -434,6 +436,7 @@ private struct DockLayoutSettingsView: View {
     var body: some View {
         let items = model.barItems
         VStack(alignment: .leading, spacing: 0) {
+            WorkspaceDockHeader()
             HStack(spacing: 10) {
                 Button {
                     model.settingsSelection = .group(model.addGroup())
@@ -468,6 +471,7 @@ private struct DockLayoutSettingsView: View {
                     DockItemRow(item: item, isFirst: index == 0, isLast: index == items.count - 1)
                 }
                 .onMove { model.moveBarItems(fromOffsets: $0, toOffset: $1) }
+                WorkspaceOtherItemsSection()
             }
             .listStyle(.inset(alternatesRowBackgrounds: true))
             Text("Drag to reorder. Groups, apps and widgets go in any order, as on the Dock from left to right.")
@@ -516,6 +520,10 @@ private struct DockItemRow: View {
                 Button { model.moveBarItem(id: item.id, by: 1) } label: { Label("Move down", systemImage: "chevron.down") }
                     .disabled(isLast)
                     .help("Move down")
+                if let workspace = model.activeWorkspace {
+                    Button { model.setItem(item.id, included: false, inWorkspace: workspace.id) } label: { Label("Remove from This Workspace", systemImage: "minus.circle") }
+                        .help("Remove from This Workspace")
+                }
                 switch item {
                 case .group(let group):
                     Button { model.settingsSelection = .group(group.id) } label: { Label("Edit Group…", systemImage: "slider.horizontal.3") }

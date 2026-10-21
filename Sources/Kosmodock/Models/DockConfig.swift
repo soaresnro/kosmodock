@@ -493,6 +493,9 @@ struct DockConfig: Codable, Equatable, Sendable {
     var pinnedApps: [DockApp] = []
     /// Item ids in bar order (see `barOrder`).
     var order: [String] = []
+    /// Bars to switch between (`Workspaces.swift`); none is a single bar.
+    var workspaces: [Workspace] = []
+    var activeWorkspaceID: String?
 }
 
 extension DockConfig {
@@ -504,23 +507,24 @@ extension DockConfig {
     /// The bar's item ids in order: `order` first, without unknown or repeated
     /// ids, then whatever it leaves out, as pinned apps, groups, tiles. An
     /// empty `order` (configs from before it) gives exactly that default.
+    /// With workspaces, the active one's items, and only those.
     var barOrder: [String] {
         let defaults = pinnedApps.map(Self.itemID(forPinned:)) + groups.map(\.id) + tiles.map(Self.itemID(for:))
         let known = Set(defaults)
         var seen = Set<String>()
-        var result = order.filter { known.contains($0) && seen.insert($0).inserted }
-        result += defaults.filter { !seen.contains($0) }
+        var result = activeOrder.filter { known.contains($0) && seen.insert($0).inserted }
+        if activeWorkspace == nil { result += defaults.filter { !seen.contains($0) } }
         return result
     }
 
-    /// Fixes the current bar order in `order`, so an item added afterwards
-    /// lands at the end instead of in its default place.
+    /// Fixes the current bar order in `activeOrder`, so an item added
+    /// afterwards lands at the end instead of in its default place.
     mutating func settleOrder() {
-        order = barOrder
+        activeOrder = barOrder
     }
 
     mutating func moveBarItems(fromOffsets source: IndexSet, toOffset destination: Int) {
-        order = barOrder.moved(fromOffsets: source, toOffset: destination)
+        activeOrder = barOrder.moved(fromOffsets: source, toOffset: destination)
     }
 
     mutating func moveBarItem(_ id: String, by offset: Int) {
@@ -529,17 +533,19 @@ extension DockConfig {
         let target = min(max(0, index + offset), ids.count - 1)
         guard target != index else { return }
         ids.swapAt(index, target)
-        order = ids
+        activeOrder = ids
     }
 
     /// Reorders groups among the places groups take on the bar, so moving one
-    /// in the sidebar leaves pinned apps and tiles where they are.
+    /// in the sidebar leaves pinned apps and tiles where they are. Offsets are
+    /// in `sidebarGroupIDs`, which ends with groups the workspace hides.
     mutating func moveGroups(fromOffsets source: IndexSet, toOffset destination: Int) {
-        let groupIDs = Set(groups.map(\.id))
+        let sidebar = sidebarGroupIDs.moved(fromOffsets: source, toOffset: destination)
         let ids = barOrder
-        var moved = ids.filter(groupIDs.contains).moved(fromOffsets: source, toOffset: destination).makeIterator()
-        order = ids.map { groupIDs.contains($0) ? (moved.next() ?? $0) : $0 }
-        let position = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element, $0.offset) })
+        let shown = Set(ids).intersection(groups.map(\.id))
+        var moved = sidebar.filter(shown.contains).makeIterator()
+        activeOrder = ids.map { shown.contains($0) ? (moved.next() ?? $0) : $0 }
+        let position = Dictionary(uniqueKeysWithValues: sidebar.enumerated().map { ($0.element, $0.offset) })
         groups.sort { (position[$0.id] ?? 0) < (position[$1.id] ?? 0) }
     }
 }
@@ -708,6 +714,8 @@ extension DockConfig {
         var pinnedIDs = Set<String>()
         pinnedApps = try c.decode(.pinnedApps, or: [DockApp]()).filter { pinnedIDs.insert($0.id).inserted }
         order = try c.decode(.order, or: [])
+        workspaces = DockConfig.normalizedWorkspaceIDs(try c.decode(.workspaces, or: []))
+        activeWorkspaceID = try c.decodeIfPresent(String.self, forKey: .activeWorkspaceID)
     }
 
     /// Unique tile ids, derived from the kind when missing.

@@ -173,6 +173,9 @@ struct DockBar: View {
 
     private var content: some View {
         CapsuleRow(spacing: density == .minimal ? 4 : 6, maxWidth: maxWidth - Self.padding * 2) {
+            if model.canSwitchWorkspaces {
+                WorkspaceDots()
+            }
             let items = model.barItems
             ForEach(items) { item in
                 Group {

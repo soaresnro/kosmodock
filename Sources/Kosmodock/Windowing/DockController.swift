@@ -71,6 +71,7 @@ final class DockController {
     private var popoverHost: NSView?
     private let animator = WindowMinimizeAnimator()
     private let intellihide = IntellihideController()
+    private var workspaceSwipe: WorkspaceSwipeMonitor?
 
     private var hasPlacedDock = false
     private var lastWorkArea: SafeWorkArea?
@@ -104,6 +105,7 @@ final class DockController {
         model.axHub.addListener { [weak self] event in self?.intellihide.handle(event) }
 
         configureIntellihide()
+        workspaceSwipe = WorkspaceSwipeMonitor(panel: dockPanel, model: model)
 
         let center = NotificationCenter.default
         tokens.append(center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
