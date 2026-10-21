@@ -641,7 +641,7 @@ private struct ShelfDetails: View {
                             })
                         }
                     Spacer()
-                    Button("Clear") { model.clearShelf(tileID: tile.id) }
+                    Button("Clear Shelf") { model.clearShelf(tileID: tile.id) }
                         .buttonStyle(GlassPillButtonStyle(tint: model.accent))
                 }
                 CappedScroll(contentHeight: CGFloat(urls.count) * 36, maxHeight: 8.5 * 36) {

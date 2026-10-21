@@ -78,11 +78,4 @@ extension AppModel {
         editBar { $0.makeCollection(from: app) }
         openSettings(.tiles)
     }
-
-    private func updateTile(_ id: String, _ change: (inout DockTile) -> Void) {
-        configService.update { config in
-            guard let index = config.tiles.firstIndex(where: { $0.id == id }) else { return }
-            change(&config.tiles[index])
-        }
-    }
 }
