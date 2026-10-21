@@ -454,13 +454,7 @@ private struct DockLayoutSettingsView: View {
                 }
                 .fixedSize()
                 Menu {
-                    ForEach(TileKind.allCases) { kind in
-                        Button {
-                            model.addTile(kind)
-                        } label: {
-                            Label(kind.title, systemImage: kind.symbol)
-                        }
-                    }
+                    AddWidgetMenuItems()
                 } label: {
                     Label("Add Widget", systemImage: "square.grid.2x2")
                 }
@@ -581,13 +575,7 @@ private struct TilesSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Menu {
-                    ForEach(TileKind.allCases) { kind in
-                        Button {
-                            model.addTile(kind)
-                        } label: {
-                            Label(kind.title, systemImage: kind.symbol)
-                        }
-                    }
+                    AddWidgetMenuItems()
                 } label: {
                     Label("Add Widget", systemImage: "plus")
                 }
@@ -599,6 +587,71 @@ private struct TilesSettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Widgets")
+    }
+}
+
+/// Widget kinds by category, for the "Add Widget" menus.
+private struct AddWidgetMenuItems: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        ForEach(TileKind.Category.allCases, id: \.self) { category in
+            Section(category.title) {
+                ForEach(TileKind.allCases.filter { $0.category == category }) { kind in
+                    Button {
+                        model.addTile(kind)
+                    } label: {
+                        Label(kind.title, systemImage: kind.symbol)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Plan limits need Kosmodock's status line in Claude Code.
+private struct ClaudeStatusLineRow: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let service = model.claude
+        LabeledContent("Plan limits") {
+            switch service.statusLine {
+            case .notSet:
+                Button("Set Up in Claude Code") { service.installStatusLine() }
+            case .kosmodock:
+                Button("Remove from Claude Code") { service.removeStatusLine() }
+            case .other:
+                Text("Your own status line").foregroundStyle(.secondary)
+            }
+        }
+        Text("Tokens come from Claude Code's files on this Mac. The 5-hour and weekly limits come from a status line Kosmodock adds to ~/.claude/settings.json (a copy is kept next to it) and only update while Claude Code runs.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .task { await service.refresh() }
+    }
+}
+
+private struct CalendarAccessRow: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        LabeledContent("Calendar access") {
+            switch model.calendar.access {
+            case .granted: Text("Allowed").foregroundStyle(.secondary)
+            case .unknown: Button("Allow") { Task { await model.calendar.requestAccessIfNeeded() } }
+            case .denied:
+                Button("Open Settings") {
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            case .unavailable: Text("Not in this build").foregroundStyle(.secondary)
+            }
+        }
+        Text("Read-only: Kosmodock shows today's and tomorrow's events and never changes them.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 }
 
@@ -626,6 +679,22 @@ private struct TileEditorSection: View {
                     Text(L10n.tr("Every %lld s", Int(interval.wrappedValue)))
                 }
                 Text("The first line of the output goes on the tile. Exit 0 is green, 1 is yellow, anything else red.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("To design the tile, print a JSON object instead: `{\"text\": \"Deploy\", \"detail\": \"2 min ago\", \"symbol\": \"cloud.fill\", \"color\": \"#2EC27E\", \"progress\": 0.6, \"status\": \"ok\", \"url\": \"https://…\"}`. Every field is optional.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            case .claudeCode:
+                ClaudeStatusLineRow()
+            case .calendar:
+                CalendarAccessRow()
+            case .nowPlaying:
+                Text("Shows Music or Spotify while one of them plays. The first time, macOS asks to let Kosmodock control the player.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .github:
+                Text("Uses the `gh` command and its login, so Kosmodock holds no token. It checks every two minutes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             case .battery, .activity, .network:

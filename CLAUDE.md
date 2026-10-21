@@ -81,8 +81,15 @@ Git workflow:
 - Only the expanded accordion row spreads. Collapsed capsules' mini icons grow in place, because a wider capsule would widen every capsule (`CapsuleRow`).
 - `WorkspaceService.launching` holds apps launched from the dock until `isFinishedLaunching`, shown for at least 0.7 s and at most 10 s. `AppIconView` animates them with `LaunchMotion` and draws `RunningIndicator` outside it, so the mark stays put.
 
-**Tiles.** `DockConfig.tiles` are widgets after the group capsules (`TileViews.swift`). Each is `square` or `wide`, and its width never depends on the reading.
-- Tiles go by `AppModel.itemID(for:)` (`tile:<id>`) wherever group ids are used: the popover (`popoverItemID`) and `CapsuleFramesKey`. Group ids are slugs, so they never contain a colon.
+**Bar order.** The bar holds group capsules, pinned apps (`DockConfig.pinnedApps`, plain icons via `PinnedAppView`) and tiles in one order.
+- Item ids: a group's id, `app:<DockApp.id>` and `tile:<id>` (`DockConfig.itemID(forPinned:)`, `itemID(for:)`). Group ids are slugs, so they never contain a colon.
+- `DockConfig.order` lists item ids. `barOrder` applies it, drops unknown and repeated ids, and appends whatever it leaves out (pinned apps, groups, tiles), so an empty `order` keeps older configs as they were.
+- Adding an item calls `settleOrder()` first, so the new item lands at the end. `moveGroups` (the sidebar) reorders groups among their own places only.
+- `AppModel.barItems` resolves the order for the views; Settings › Dock edits it.
+- `GroupResolver` sends minimized windows to the app's group, then its pinned icon, then the general group.
+
+**Tiles.** `DockConfig.tiles` are widgets on the bar (`TileViews.swift`, `AppWidgetViews.swift`). Each is `square` or `wide`, and its width never depends on the reading.
+- Tiles and pinned apps go by their item id wherever group ids are used: the popover (`popoverItemID`), `CapsuleFramesKey` and the minimize animation.
 - `DockRootView` tries each density with wide tiles, then with square tiles, before the next density. `GroupCapsuleView.variant` keeps matched-geometry ids unique across those candidates.
 - `CapsuleRow` proposes the row's height to every item, so tiles (`maxHeight: .infinity`) match the capsules' height in each density.
 - `TelemetryService` reads `battery` (IOKit power sources) and `network` only while such a tile exists.
@@ -90,6 +97,13 @@ Git workflow:
   - macOS rounds those counters to 1 KiB, so low traffic reads as 0 or about 340 B/s.
   - Command tiles run under the key `tile:<id>`, and a new one's label is the config text `L10n.uptime`.
 - Tiles are VoiceOver buttons (`accessibilityAction`), which also lets AX scripts open their popovers.
+- App widgets (`AppWidgetServices.swift`) run only while their tile is on the bar (`AppModel.updateAppWidgetServices`):
+  - `ClaudeUsageService` reads transcripts incrementally and counts each `message.id` once (one response spans several lines with the same `usage`). The plan limits come only from Claude Code's status line JSON, which the `ClaudeStatusLine` script saves to `claude-limits.json`; *Set Up* edits `~/.claude/settings.json` only on click and never replaces another status line. The script avoids `printf` for numbers, because the shell's parsing follows the locale (pt-BR rejects `23.5`).
+  - `NowPlayingService` asks Music/Spotify through `osascript` only while the app is running (`tell application` would launch it). Error -1743 means Automation was denied.
+  - `CalendarService` checks `Bundle.main.infoDictionary` for the usage key before asking: asking without it crashes the app, and `object(forInfoDictionaryKey:)` would also find the key in `InfoPlist.strings`.
+  - `GitHubService` runs `gh search prs` every two minutes; exit 4 means signed out, 127 not installed.
+- `bundle.sh` writes the Automation and Calendars usage descriptions into Info.plist; `Localization/*.lproj/InfoPlist.strings` translates them.
+- A command that prints a JSON object draws its widget (`CommandOutput`: text, detail, symbol, color, progress, status, url).
 
 **Coordinates.** AppKit rects are bottom-left origin; the Accessibility/Quartz API and `CGWindowList` are top-left origin of the primary display. `TilingEngine.accessibilityRect(fromCocoa:primaryScreenHeight:)` converts in both directions. `TilingEngine` is pure layout math in top-left space, which is why its tests read top-down.
 

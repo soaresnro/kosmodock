@@ -1,0 +1,6 @@
+/* Kosmodock — permission prompts (Info.plist). */
+
+"NSAccessibilityUsageDescription" = "Kosmodock usa la Accesibilidad para mover y redimensionar las ventanas de tus grupos de apps y organizarlas con un clic.";
+"NSAppleEventsUsageDescription" = "Kosmodock controla Música y Spotify solo para el widget Reproduciendo: lee la pista actual y reproduce, pausa o salta.";
+"NSCalendarsFullAccessUsageDescription" = "Kosmodock lee tus calendarios solo para el widget Calendario, para mostrar los eventos de hoy y de mañana. Nunca los modifica.";
+"NSCalendarsUsageDescription" = "Kosmodock lee tus calendarios solo para el widget Calendario, para mostrar los eventos de hoy y de mañana. Nunca los modifica.";

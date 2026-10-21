@@ -889,3 +889,144 @@ final class BarOrderTests: XCTestCase {
         XCTAssertEqual(old.order, [])
     }
 }
+
+/// App widgets: the parsing behind Now Playing, GitHub, Calendar and Claude Code.
+@MainActor
+final class AppWidgetTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 2_000_000_000)
+
+    private func shell(_ stdout: String, stderr: String = "", exit: Int32 = 0) -> ShellResult {
+        ShellResult(exitCode: exit, stdout: stdout, stderr: stderr)
+    }
+
+    func testNowPlayingParsing() {
+        let playing = NowPlayingService.state(from: shell("playing\tGarota de Ipanema\tJoão Gilberto\tGetz/Gilberto\t320,5\t12.25\n"), player: .music, now: now)
+        XCTAssertEqual(playing, .playing(NowPlaying(
+            player: .music, isPlaying: true, title: "Garota de Ipanema", artist: "João Gilberto", album: "Getz/Gilberto",
+            duration: 320.5, position: 12.25, sampledAt: now
+        )), "decimal commas from a Portuguese system are read too")
+        XCTAssertEqual(NowPlayingService.state(from: shell("stopped\n"), player: .spotify), .idle)
+        XCTAssertEqual(NowPlayingService.state(from: shell("", stderr: "execution error: Not authorized to send Apple events to Music. (-1743)", exit: 1), player: .music), .denied(.music))
+        XCTAssertEqual(NowPlayingService.state(from: shell("", stderr: "boom", exit: 1), player: .music), .idle)
+
+        guard case .playing(var track) = playing else { return XCTFail() }
+        XCTAssertEqual(track.position(at: now.addingTimeInterval(10)), 22.25)
+        XCTAssertEqual(track.position(at: now.addingTimeInterval(1000)), 320.5, "never past the end")
+        track.isPlaying = false
+        XCTAssertEqual(track.position(at: now.addingTimeInterval(10)), 12.25, "paused tracks don't move")
+    }
+
+    func testGitHubParsing() throws {
+        let json = #"[{"number":9,"title":"Add widget tiles","url":"https://github.com/o/r/pull/9","isDraft":false,"repository":{"name":"r","nameWithOwner":"o/r"},"updatedAt":"2026-10-21T17:30:16Z"}]"#
+        let pulls = try GitHubService.parse(shell(json)).get()
+        XCTAssertEqual(pulls.map(\.number), [9])
+        XCTAssertEqual(pulls.first?.repository.nameWithOwner, "o/r")
+        XCTAssertNotNil(pulls.first?.updatedAt)
+        XCTAssertEqual(GitHubService.parse(shell("", stderr: "To get started with GitHub CLI, please run:  gh auth login", exit: 4)), .failure(.init(status: .signedOut)))
+        XCTAssertEqual(GitHubService.parse(shell("", stderr: "sh: gh: command not found", exit: 127)), .failure(.init(status: .notInstalled)))
+        guard case .failure(let error) = GitHubService.parse(shell("not json")), case .failed = error.status else { return XCTFail() }
+    }
+
+    func testNextCalendarEventPrefersTimedOnes() {
+        let allDay = CalendarEvent(id: "a", title: "Holiday", start: now.addingTimeInterval(-3600), end: now.addingTimeInterval(20 * 3600), isAllDay: true)
+        let past = CalendarEvent(id: "p", title: "Standup", start: now.addingTimeInterval(-7200), end: now.addingTimeInterval(-5400), isAllDay: false)
+        let ongoing = CalendarEvent(id: "o", title: "Review", start: now.addingTimeInterval(-600), end: now.addingTimeInterval(1200), isAllDay: false)
+        let later = CalendarEvent(id: "l", title: "Lunch", start: now.addingTimeInterval(3600), end: now.addingTimeInterval(7200), isAllDay: false)
+        XCTAssertEqual(CalendarService.next(in: [allDay, past, ongoing, later], at: now)?.id, "o")
+        XCTAssertEqual(CalendarService.next(in: [allDay, past], at: now)?.id, "a", "all-day only when nothing else is left")
+        XCTAssertNil(CalendarService.next(in: [past], at: now))
+    }
+
+    func testClaudeTranscriptsCountEachResponseOnce() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("claude-\(UUID().uuidString)")
+        let project = root.appendingPathComponent("-Users-me-project")
+        try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        func line(_ id: String, _ minutesAgo: Double, output: Int) -> String {
+            let stamp = ISO8601DateFormatter.string(from: Date().addingTimeInterval(-minutesAgo * 60), timeZone: TimeZone(identifier: "UTC")!, formatOptions: [.withInternetDateTime, .withFractionalSeconds])
+            return #"{"type":"assistant","timestamp":"\#(stamp)","message":{"id":"\#(id)","model":"claude-opus-5-5","usage":{"input_tokens":10,"output_tokens":\#(output),"cache_read_input_tokens":100,"cache_creation_input_tokens":5}}}"#
+        }
+        let file = project.appendingPathComponent("session.jsonl")
+        // One response split over two lines, a user line, and a half-written line.
+        let text = [line("msg_1", 30, output: 50), line("msg_1", 30, output: 50), #"{"type":"user","message":{"content":"hi"}}"#, line("msg_2", 400, output: 7)].joined(separator: "\n") + "\n" + String(line("msg_3", 1, output: 1).prefix(40))
+        try text.write(to: file, atomically: true, encoding: .utf8)
+
+        let reader = ClaudeTranscriptReader(root: root)
+        var usage = await reader.read()
+        XCTAssertEqual(usage.lastFiveHours.total, 165, "msg_1 once; msg_2 is older than 5 hours")
+        XCTAssertEqual(usage.lastSevenDays.total, 165 + 122)
+        XCTAssertEqual(usage.model, "claude-opus-5-5")
+
+        // The rest of the last line arrives.
+        let handle = try FileHandle(forWritingTo: file)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data((String(line("msg_3", 1, output: 1).dropFirst(40)) + "\n").utf8))
+        try handle.close()
+        usage = await reader.read()
+        XCTAssertEqual(usage.lastFiveHours.total, 165 + 116, "the completed line counts, nothing twice")
+    }
+
+    func testClaudeLimitsDropWindowsThatReset() throws {
+        let data = Data(#"{"five_hour":{"used_percentage":23.5,"resets_at":1999990000},"seven_day":{"used_percentage":41.2,"resets_at":2000500000}}"#.utf8)
+        let limits = ClaudeStatusLine.limits(from: data, now: now)
+        XCTAssertNil(limits.fiveHour, "reset before now: unknown, not 23%")
+        XCTAssertEqual(limits.weekly?.usedPercent, 41.2)
+        XCTAssertEqual(limits.weekly?.resetsAt, Date(timeIntervalSince1970: 2_000_500_000))
+    }
+
+    func testClaudeStatusLineScriptSavesLimits() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("home-\(UUID().uuidString)")
+        let config = home.appendingPathComponent(".config/kosmodock")
+        try FileManager.default.createDirectory(at: config, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        func run(_ input: String) throws -> String {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", ClaudeStatusLine.script]
+            process.environment = ["HOME": home.path, "LANG": "pt_BR.UTF-8", "LC_ALL": "pt_BR.UTF-8"]
+            let stdin = Pipe(), stdout = Pipe()
+            process.standardInput = stdin
+            process.standardOutput = stdout
+            try process.run()
+            stdin.fileHandleForWriting.write(Data(input.utf8))
+            try stdin.fileHandleForWriting.close()
+            process.waitUntilExit()
+            return String(decoding: stdout.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        }
+        let line = try run(#"{"model":{"display_name":"Opus 5.5"},"rate_limits":{"five_hour":{"used_percentage":23.5,"resets_at":2000000000},"seven_day":{"used_percentage":41.2,"resets_at":2000500000}}}"#)
+        XCTAssertEqual(line, "Opus 5.5 · 5h 23% · 7d 41%\n", "works under a Portuguese locale")
+        let saved = try Data(contentsOf: config.appendingPathComponent("claude-limits.json"))
+        XCTAssertEqual(ClaudeStatusLine.limits(from: saved, now: now.addingTimeInterval(-60)).fiveHour?.usedPercent, 23.5)
+        XCTAssertEqual(try run(#"{"model":{"display_name":"Opus 5.5"}}"#), "Opus 5.5\n", "no limits yet: the saved ones stay")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: config.appendingPathComponent("claude-limits.json").path))
+    }
+
+    func testCommandsCanDrawTheirWidgetWithJSON() {
+        let json = ##"{"text": "Deploy", "detail": "2 min ago", "symbol": "cloud.fill", "color": "#2EC27E", "progress": 1.4, "status": "warning", "url": "https://example.com/run/1"}"##
+        let result = ProbeResult(shell: shell(json + "\n"))
+        XCTAssertEqual(result.summary, "Deploy")
+        XCTAssertEqual(result.detail, "2 min ago")
+        XCTAssertEqual(result.level, .warning, "status wins over the exit code")
+        XCTAssertEqual(result.output?.symbol, "cloud.fill")
+        XCTAssertEqual(result.output?.colorHex, "#2EC27E")
+        XCTAssertEqual(result.output?.progress, 1, "clamped to 0…1")
+        XCTAssertEqual(result.output?.url, URL(string: "https://example.com/run/1"))
+
+        let plain = ProbeResult(shell: shell("All green\nmore\n"))
+        XCTAssertNil(plain.output)
+        XCTAssertEqual(plain.summary, "All green")
+        let broken = ProbeResult(shell: shell("{not json\n", exit: 1))
+        XCTAssertNil(broken.output)
+        XCTAssertEqual(broken.summary, "{not json")
+        XCTAssertEqual(broken.level, .warning)
+        XCTAssertEqual(ProbeResult(shell: shell(#"{"progress": 0.5}"#)).level, .ok, "fields left out keep the plain behavior")
+    }
+
+    func testCompactCounts() {
+        let point = L10n.locale.decimalSeparator ?? "."
+        XCTAssertEqual(Format.count(980), "980")
+        XCTAssertEqual(Format.count(12_400), "12K")
+        XCTAssertEqual(Format.count(1_234_567), "1\(point)2M")
+        XCTAssertEqual(Format.count(3_400_000_000), "3\(point)4B")
+    }
+}

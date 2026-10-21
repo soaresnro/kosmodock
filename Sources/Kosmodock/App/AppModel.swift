@@ -37,6 +37,11 @@ final class AppModel {
     let workspace: WorkspaceService
     let telemetry: TelemetryService
     let containers: ContainerMonitorService
+    // App widget tiles' data, each running only while its tile is on the bar.
+    let claude = ClaudeUsageService()
+    let nowPlaying = NowPlayingService()
+    let calendar = CalendarService()
+    let github = GitHubService()
     let windows: WindowManagerService
     let systemDock: SystemDockManager
     let axHub: AXObserverHub
@@ -82,6 +87,7 @@ final class AppModel {
     func start() {
         telemetry.start()
         containers.setEnabled(Self.needsContainerMonitor(config))
+        updateAppWidgetServices()
         windows.startMonitoringTrust()
         systemDock.reconcile(wantsSuppressed: config.behavior.suppressNativeDock)
         applyWindowBehavior()
@@ -96,6 +102,9 @@ final class AppModel {
     func stop() {
         telemetry.stop()
         containers.setEnabled(false)
+        for service in [claude.setEnabled, nowPlaying.setEnabled, calendar.setEnabled, github.setEnabled] as [(Bool) -> Void] {
+            service(false)
+        }
         axHub.stop()
     }
 
@@ -358,7 +367,13 @@ final class AppModel {
     func refreshTelemetry(for itemID: String) {
         telemetry.refreshNow()
         if let tile = tile(itemID: itemID) {
-            if tile.kind == .command { telemetry.runCommandNow(for: tile) }
+            switch tile.kind {
+            case .command: telemetry.runCommandNow(for: tile)
+            case .claudeCode: Task { await claude.refresh() }
+            case .nowPlaying: Task { await nowPlaying.refresh() }
+            case .github: Task { await github.refresh() }
+            default: break
+            }
             return
         }
         guard let group = group(id: itemID) else { return }
@@ -613,9 +628,19 @@ final class AppModel {
         config.groups.contains { $0.widget.type == .podman }
     }
 
+    /// Starts the services of the app widgets on the bar and stops the rest.
+    func updateAppWidgetServices() {
+        let kinds = Set(config.tiles.map(\.kind))
+        claude.setEnabled(kinds.contains(.claudeCode))
+        nowPlaying.setEnabled(kinds.contains(.nowPlaying))
+        calendar.setEnabled(kinds.contains(.calendar))
+        github.setEnabled(kinds.contains(.github))
+    }
+
     private func configDidChange(from old: DockConfig, to new: DockConfig) {
         if old.behavior.language != new.behavior.language { L10n.setLanguage(new.behavior.language) }
         containers.setEnabled(Self.needsContainerMonitor(new))
+        if old.tiles != new.tiles { updateAppWidgetServices() }
         if old.behavior.suppressNativeDock != new.behavior.suppressNativeDock {
             systemDock.reconcile(wantsSuppressed: new.behavior.suppressNativeDock)
         }

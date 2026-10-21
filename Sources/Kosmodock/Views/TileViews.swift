@@ -71,6 +71,10 @@ private struct TileContent: View {
         case .battery: BatteryTile(isWide: isWide)
         case .activity: ActivityTile(isWide: isWide)
         case .network: NetworkTile(isWide: isWide)
+        case .claudeCode: ClaudeTile(isWide: isWide)
+        case .nowPlaying: NowPlayingTile(isWide: isWide)
+        case .calendar: CalendarTile(isWide: isWide)
+        case .github: GitHubTile(isWide: isWide)
         case .command: CommandTile(tile: tile, isWide: isWide)
         }
     }
@@ -277,29 +281,50 @@ private struct CommandTile: View {
 
     var body: some View {
         let result = model.telemetry.commandResults[TelemetryService.commandKey(tile: tile)]
+        let output = result?.output
         let summary = result?.summary ?? ((tile.command?.isBlank ?? true) ? L10n.tr("No command") : L10n.tr("Running…"))
+        let color = Color(hex: output?.colorHex) ?? model.accent
         if isWide {
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 4) {
-                    StatusDot(level: result?.level ?? .unknown, size: 6)
-                    Text(tile.title.uppercased())
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                if let symbol = output?.symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(color)
                 }
-                Text(summary)
-                    .font(.system(size: 11, weight: .semibold))
-                    .monospacedDigit()
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 4) {
+                        StatusDot(level: result?.level ?? .unknown, size: 6)
+                        Text(tile.title.uppercased())
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(summary)
+                        .font(.system(size: 11, weight: .semibold))
+                        .monospacedDigit()
+                    if let progress = output?.progress {
+                        UsageBar(fraction: progress, color: color).padding(.top, 1)
+                    }
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             VStack(spacing: 3) {
-                StatusDot(level: result?.level ?? .unknown, size: 7)
+                if let symbol = output?.symbol {
+                    Image(systemName: symbol)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(color)
+                } else {
+                    StatusDot(level: result?.level ?? .unknown, size: 7)
+                }
                 Text(summary)
                     .font(.system(size: 8, weight: .semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+                if let progress = output?.progress {
+                    UsageBar(fraction: progress, color: color)
+                }
             }
         }
     }
@@ -330,6 +355,10 @@ struct TilePopoverView: View {
                 case .battery: BatteryDetails()
                 case .activity: ActivityDetails()
                 case .network: NetworkDetails()
+                case .claudeCode: ClaudeDetails()
+                case .nowPlaying: NowPlayingDetails()
+                case .calendar: CalendarDetails()
+                case .github: GitHubDetails()
                 case .command: CommandDetails(tile: tile)
                 }
             }
@@ -527,10 +556,18 @@ private struct CommandDetails: View {
                     .truncationMode(.middle)
                 if let detail = result?.detail, !detail.isEmpty, detail != result?.summary {
                     Text(detail)
-                        .font(.system(size: 10, design: .monospaced))
+                        .font(.system(size: 10, design: result?.output == nil ? .monospaced : .default))
                         .foregroundStyle(.secondary)
                         .lineLimit(6)
                         .textSelection(.enabled)
+                }
+                if let progress = result?.output?.progress {
+                    UsageBar(fraction: progress, color: Color(hex: result?.output?.colorHex) ?? model.accent)
+                }
+                if let url = result?.output?.url {
+                    Button("Open") { NSWorkspace.shared.open(url) }
+                        .buttonStyle(GlassPillButtonStyle(tint: model.accent, prominent: true))
+                        .help(url.absoluteString)
                 }
             }
         } accessory: {

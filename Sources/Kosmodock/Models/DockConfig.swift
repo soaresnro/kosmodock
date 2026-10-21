@@ -330,6 +330,10 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case battery
     case activity
     case network
+    case claudeCode
+    case nowPlaying
+    case calendar
+    case github
     case command
 
     var id: String { rawValue }
@@ -340,6 +344,10 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .battery: L10n.tr("Battery")
         case .activity: L10n.tr("CPU & Memory")
         case .network: L10n.tr("Network")
+        case .claudeCode: "Claude Code"
+        case .nowPlaying: L10n.tr("Now Playing")
+        case .calendar: L10n.tr("Calendar")
+        case .github: "GitHub"
         case .command: L10n.tr("Command")
         }
     }
@@ -350,7 +358,36 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .battery: "battery.75percent"
         case .activity: "cpu"
         case .network: "arrow.up.arrow.down"
+        case .claudeCode: "sparkle"
+        case .nowPlaying: "music.note"
+        case .calendar: "calendar"
+        case .github: "arrow.triangle.pull"
         case .command: "terminal"
+        }
+    }
+
+    enum Category: CaseIterable {
+        /// The Mac's own readings.
+        case system
+        /// Data from other apps.
+        case apps
+        /// Your own, from a script.
+        case custom
+
+        var title: String {
+            switch self {
+            case .system: L10n.tr("System")
+            case .apps: L10n.tr("Apps")
+            case .custom: L10n.tr("Custom")
+            }
+        }
+    }
+
+    var category: Category {
+        switch self {
+        case .clock, .battery, .activity, .network: .system
+        case .claudeCode, .nowPlaying, .calendar, .github: .apps
+        case .command: .custom
         }
     }
 }
