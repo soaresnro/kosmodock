@@ -44,6 +44,7 @@ enum SnapshotRenderer {
         try? await Task.sleep(for: .seconds(7))
 
         injectSampleMinimizedWindows(into: model)
+        injectSampleNotificationBadges(into: model)
         let width = model.dockMaxWidth + DockMetrics.shadowInset * 2
         let geometry = GroupGeometryTracker()
 
@@ -94,6 +95,17 @@ enum SnapshotRenderer {
             )
         }
         model.minimizedWindows.injectPreviewEntries(entries)
+    }
+
+    /// A count, a dot and a long text on the first apps of the first groups.
+    private static func injectSampleNotificationBadges(into model: AppModel) {
+        let apps = model.config.groups.prefix(3).flatMap { $0.apps.prefix(3) }
+        let samples = ["3", "•", "12345678", "27", "New"]
+        var badges: [String: String] = [:]
+        for (app, label) in zip(apps, samples) {
+            if let bundleID = model.workspace.bundleID(for: app) { badges[bundleID] = label }
+        }
+        model.dockBadges.injectPreviewBadges(badges)
     }
 
     private static func write<V: View>(_ view: V, model: AppModel, proposed: CGSize?, name: String, in directory: URL) {

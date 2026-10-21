@@ -47,6 +47,7 @@ final class AppModel {
     let axHub: AXObserverHub
     let enforcer: BottomMarginEnforcer
     let minimizedWindows: MinimizedWindowTracker
+    let dockBadges: DockBadgeService
 
     /// Group expanded inline in accordion mode.
     var expandedGroupID: String?
@@ -78,6 +79,7 @@ final class AppModel {
         axHub = hub
         enforcer = BottomMarginEnforcer(windows: windows)
         minimizedWindows = MinimizedWindowTracker(hub: hub, windowService: windows)
+        dockBadges = DockBadgeService(windows: windows)
         if let first = configService.config.groups.first { settingsSelection = .group(first.id) }
         L10n.setLanguage(configService.config.behavior.language)
         configService.addObserver { [weak self] old, new in self?.configDidChange(from: old, to: new) }
@@ -106,6 +108,7 @@ final class AppModel {
             service(false)
         }
         axHub.stop()
+        dockBadges.setActive(false)
     }
 
     private func wireWindowServices() {
@@ -132,6 +135,7 @@ final class AppModel {
             axHub.stop()
             minimizedWindows.accessibilityDidChange(trusted: false)
             enforcer.isEnabled = false
+            applyNotificationBadges()
         }
     }
 
@@ -140,6 +144,7 @@ final class AppModel {
         enforcer.isEnabled = behavior.reserveScreenSpace && windows.isTrusted
         enforcer.exclusions = Set(behavior.screenSpaceExclusions)
         minimizedWindows.setEnabled(behavior.minimizeToGroups)
+        applyNotificationBadges()
     }
 
     private static let reservedLineKey = "Kosmodock.lastReservedLine"

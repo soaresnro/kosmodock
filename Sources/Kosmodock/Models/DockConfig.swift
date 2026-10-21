@@ -595,6 +595,8 @@ struct BehaviorConfig: Codable, Equatable, Sendable {
     /// Bundle identifiers the screen-space enforcer never resizes or moves.
     var screenSpaceExclusions: [String] = []
     var language: AppLanguage = .system
+    /// App badges ("3", "•") read from the native Dock through Accessibility.
+    var showsNotificationBadges: Bool = true
 }
 
 struct TelemetryConfig: Codable, Equatable, Sendable {
@@ -830,6 +832,7 @@ extension BehaviorConfig {
         clickActiveAppToMinimize = try c.decode(.clickActiveAppToMinimize, or: d.clickActiveAppToMinimize)
         screenSpaceExclusions = try c.decode(.screenSpaceExclusions, or: d.screenSpaceExclusions)
         language = try c.decode(.language, or: d.language)
+        showsNotificationBadges = try c.decode(.showsNotificationBadges, or: d.showsNotificationBadges)
     }
 }
 

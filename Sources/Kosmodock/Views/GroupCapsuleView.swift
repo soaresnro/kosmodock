@@ -138,7 +138,7 @@ struct GroupCapsuleView: View {
                 items: Array(group.apps.prefix(miniIconLimit)), size: iconSize, spacing: 3,
                 maxScale: model.theme.hoverEffect == .magnify ? 1.3 : nil, spreads: false
             ) { app in
-                AppIconView(app: app, size: iconSize, tint: model.tint(for: group))
+                AppIconView(app: app, size: iconSize, tint: model.tint(for: group), badgeStyle: .dot)
                     .matchedGeometryEffect(id: iconID(app), in: namespace)
             }
             if group.apps.count > miniIconLimit {
