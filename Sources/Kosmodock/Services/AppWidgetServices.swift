@@ -292,16 +292,14 @@ final class GitHubService {
         async let own = ShellRunner.shell("gh search prs --author=@me --state=open --json \(fields) --limit 25", timeout: 20)
         async let review = ShellRunner.shell("gh search prs --review-requested=@me --state=open --json \(fields) --limit 25", timeout: 20)
         let (ownResult, reviewResult) = await (own, review)
-        do {
-            let ownPRs = try Self.parse(ownResult).get()
-            let reviewPRs = try Self.parse(reviewResult).get()
+        switch (Self.parse(ownResult), Self.parse(reviewResult)) {
+        case (.success(let ownPRs), .success(let reviewPRs)):
             if ownPRs != mine { mine = ownPRs }
             if reviewPRs != reviewRequests { reviewRequests = reviewPRs }
             updatedAt = Date()
             if status != .ready { status = .ready }
-        } catch {
-            let next = (error as? StatusError)?.status ?? .failed(error.localizedDescription)
-            if status != next { status = next }
+        case (.failure(let failure), _), (_, .failure(let failure)):
+            if status != failure.status { status = failure.status }
         }
     }
 
@@ -456,7 +454,7 @@ actor ClaudeTranscriptReader {
 }
 
 /// Claude Code hands plan usage only to its status line command, so the
-/// Claude Code widget can install one that saves it (`limitsFile`).
+/// Claude Code widget can install one that saves what it gets (`statusFile`).
 enum ClaudeStatusLine: Equatable, Sendable {
     case notSet
     case kosmodock
@@ -467,7 +465,8 @@ enum ClaudeStatusLine: Equatable, Sendable {
     /// Kosmodock's config folder, where the script and its data live.
     static let directory = ConfigService.defaultFileURL.deletingLastPathComponent()
     static let scriptFile = directory.appendingPathComponent("claude-statusline.sh")
-    static let limitsFile = directory.appendingPathComponent("claude-limits.json")
+    /// The status line's whole input; Kosmodock reads `rate_limits` from it.
+    static let statusFile = directory.appendingPathComponent("claude-status.json")
 
     static var current: ClaudeStatusLine {
         guard let data = try? Data(contentsOf: settingsFile),
@@ -478,27 +477,31 @@ enum ClaudeStatusLine: Equatable, Sendable {
         return command.contains(scriptFile.lastPathComponent) ? .kosmodock : .other(command: command)
     }
 
-    /// Saves `rate_limits` for the dock and prints a short line in Claude Code.
-    static let script = """
+    /// Saves its input for the dock and prints a short line in Claude Code.
+    /// No JSON tools: `plutil` can't read JSON from stdin before macOS 26,
+    /// and `jq` isn't installed by default. The line is best effort; the
+    /// file is what the widget reads.
+    static let script = #"""
     #!/bin/sh
-    # Kosmodock: saves Claude Code's plan usage for the dock's Claude Code widget
-    # and shows it in Claude Code's status line. Remove it in Kosmodock's
-    # Settings › Widgets.
+    # Kosmodock: saves Claude Code's status data, which includes your plan's
+    # usage, for the dock's Claude Code widget, and shows the usage here.
+    # Remove it in Kosmodock's Settings › Widgets.
     input=$(cat)
     dir="$HOME/.config/kosmodock"
-    value() { printf '%s' "$input" | /usr/bin/plutil -extract "$1" "$2" -o - - 2>/dev/null; }
-    limits=$(value rate_limits json)
-    if [ -n "$limits" ]; then
-      printf '%s' "$limits" > "$dir/.claude-limits.tmp" && mv -f "$dir/.claude-limits.tmp" "$dir/claude-limits.json"
-    fi
-    line=$(value model.display_name raw)
-    five=$(value rate_limits.five_hour.used_percentage raw)
-    week=$(value rate_limits.seven_day.used_percentage raw)
-    # Whole percents without printf, whose number parsing follows the locale.
-    [ -n "$five" ] && line="$line · 5h ${five%%.*}%"
-    [ -n "$week" ] && line="$line · 7d ${week%%.*}%"
-    printf '%s\\n' "${line:-Claude}"
-    """
+    flat=$(printf '%s' "$input" | tr -d '\n')
+    # Sessions start without rate_limits; keep the last ones until they come.
+    case "$flat" in
+      *'"rate_limits"'*) printf '%s' "$input" > "$dir/.claude-status.tmp" && mv -f "$dir/.claude-status.tmp" "$dir/claude-status.json" ;;
+    esac
+    model=$(printf '%s' "$flat" | sed -n 's/.*"model" *: *{[^}]*"display_name" *: *"\([^"]*\)".*/\1/p')
+    percent() { printf '%s' "$flat" | sed -n "s/.*\"$1\" *: *{[^}]*\"used_percentage\" *: *\([0-9]*\).*/\1/p"; }
+    five=$(percent five_hour)
+    week=$(percent seven_day)
+    line="${model:-Claude}"
+    [ -n "$five" ] && line="$line · 5h $five%"
+    [ -n "$week" ] && line="$line · 7d $week%"
+    printf '%s\n' "$line"
+    """#
 
     /// Adds Kosmodock's status line to Claude Code's settings, keeping a copy
     /// of them. Does nothing when another status line is set.
@@ -517,7 +520,7 @@ enum ClaudeStatusLine: Equatable, Sendable {
         guard case .kosmodock = current else { return }
         settings["statusLine"] = nil
         try writeSettings(settings)
-        try? FileManager.default.removeItem(at: limitsFile)
+        try? FileManager.default.removeItem(at: statusFile)
     }
 
     private static func readSettings() throws -> [String: Any] {
@@ -541,9 +544,11 @@ enum ClaudeStatusLine: Equatable, Sendable {
         try data.write(to: settingsFile, options: .atomic)
     }
 
-    /// The windows from `limitsFile`, without any that reset since it was written.
+    /// The windows in `statusFile`, without any that reset since it was written.
     static func limits(from data: Data, now: Date = Date()) -> (fiveHour: ClaudeLimit?, weekly: ClaudeLimit?) {
-        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return (nil, nil) }
+        guard let status = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let object = status["rate_limits"] as? [String: Any]
+        else { return (nil, nil) }
         func limit(_ key: String) -> ClaudeLimit? {
             guard let window = object[key] as? [String: Any],
                   let used = (window["used_percentage"] as? NSNumber)?.doubleValue,
@@ -581,12 +586,12 @@ final class ClaudeUsageService {
 
     func refresh() async {
         var next = await reader.read()
-        let limitsFile = ClaudeStatusLine.limitsFile
-        if let data = try? Data(contentsOf: limitsFile) {
+        let statusFile = ClaudeStatusLine.statusFile
+        if let data = try? Data(contentsOf: statusFile) {
             let limits = ClaudeStatusLine.limits(from: data)
             next.fiveHourLimit = limits.fiveHour
             next.weeklyLimit = limits.weekly
-            next.limitsUpdatedAt = (try? limitsFile.resourceValues(forKeys: [URLResourceKey.contentModificationDateKey]))?.contentModificationDate
+            next.limitsUpdatedAt = (try? statusFile.resourceValues(forKeys: [URLResourceKey.contentModificationDateKey]))?.contentModificationDate
         }
         if next != usage { usage = next }
         let line = ClaudeStatusLine.current

@@ -424,7 +424,7 @@
 "Window tiling needs Accessibility access" = "Organizar ventanas requiere acceso de Accesibilidad";
 "Windows that reach into the dock's band are moved up or shrunk to stop at its top edge, like the native Dock. Turn off to use Intellihide: the dock slides away while a window overlaps it and returns when the pointer touches the bottom edge." = "Las ventanas que invaden la franja del Dock se desplazan hacia arriba o se encogen hasta su borde superior, como con el Dock nativo. Desactívalo para usar Intellihide: el Dock se oculta mientras una ventana lo tapa y vuelve cuando el puntero toca el borde inferior.";
 "Working…" = "Procesando…";
-"You already have a Claude Code status line, so Kosmodock leaves it alone. To see the limits here, make it also save `rate_limits` to ~/.config/kosmodock/claude-limits.json." = "Ya tienes una barra de estado en Claude Code, así que Kosmodock no la toca. Para ver los límites aquí, haz que también guarde `rate_limits` en ~/.config/kosmodock/claude-limits.json.";
+"You already have a Claude Code status line, so Kosmodock leaves it alone. To see the limits here, make it also save its input to ~/.config/kosmodock/claude-status.json." = "Ya tienes una barra de estado en Claude Code, así que Kosmodock no la toca. Para ver los límites aquí, haz que también guarde lo que recibe en ~/.config/kosmodock/claude-status.json.";
 "Your own status line" = "Tu propia barra de estado";
 "Your pull requests" = "Tus pull requests";
 "🐳 Daemon down" = "🐳 Daemon detenido";

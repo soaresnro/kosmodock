@@ -967,7 +967,7 @@ final class AppWidgetTests: XCTestCase {
     }
 
     func testClaudeLimitsDropWindowsThatReset() throws {
-        let data = Data(#"{"five_hour":{"used_percentage":23.5,"resets_at":1999990000},"seven_day":{"used_percentage":41.2,"resets_at":2000500000}}"#.utf8)
+        let data = Data(#"{"model":{"display_name":"Opus 5.5"},"rate_limits":{"five_hour":{"used_percentage":23.5,"resets_at":1999990000},"seven_day":{"used_percentage":41.2,"resets_at":2000500000}}}"#.utf8)
         let limits = ClaudeStatusLine.limits(from: data, now: now)
         XCTAssertNil(limits.fiveHour, "reset before now: unknown, not 23%")
         XCTAssertEqual(limits.weekly?.usedPercent, 41.2)
@@ -995,10 +995,12 @@ final class AppWidgetTests: XCTestCase {
         }
         let line = try run(#"{"model":{"display_name":"Opus 5.5"},"rate_limits":{"five_hour":{"used_percentage":23.5,"resets_at":2000000000},"seven_day":{"used_percentage":41.2,"resets_at":2000500000}}}"#)
         XCTAssertEqual(line, "Opus 5.5 · 5h 23% · 7d 41%\n", "works under a Portuguese locale")
-        let saved = try Data(contentsOf: config.appendingPathComponent("claude-limits.json"))
-        XCTAssertEqual(ClaudeStatusLine.limits(from: saved, now: now.addingTimeInterval(-60)).fiveHour?.usedPercent, 23.5)
-        XCTAssertEqual(try run(#"{"model":{"display_name":"Opus 5.5"}}"#), "Opus 5.5\n", "no limits yet: the saved ones stay")
-        XCTAssertTrue(FileManager.default.fileExists(atPath: config.appendingPathComponent("claude-limits.json").path))
+        let status = config.appendingPathComponent("claude-status.json")
+        XCTAssertEqual(ClaudeStatusLine.limits(from: try Data(contentsOf: status), now: now.addingTimeInterval(-60)).fiveHour?.usedPercent, 23.5)
+        XCTAssertEqual(try run(#"{"model":{"display_name":"Opus 5.5"}}"#), "Opus 5.5\n", "no limits yet")
+        XCTAssertEqual(ClaudeStatusLine.limits(from: try Data(contentsOf: status), now: now.addingTimeInterval(-60)).fiveHour?.usedPercent, 23.5, "the saved ones stay")
+        // Pretty-printed input, as another Claude Code version might send.
+        XCTAssertEqual(try run("{\n  \"model\": { \"display_name\": \"Sonnet 5.5\" },\n  \"rate_limits\": { \"five_hour\": { \"used_percentage\": 7, \"resets_at\": 2000000000 } }\n}"), "Sonnet 5.5 · 5h 7%\n")
     }
 
     func testCommandsCanDrawTheirWidgetWithJSON() {

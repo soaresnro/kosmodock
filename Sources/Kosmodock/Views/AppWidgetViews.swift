@@ -109,7 +109,7 @@ struct ClaudeDetails: View {
                         Button("Set Up") { service.installStatusLine() }
                             .buttonStyle(GlassPillButtonStyle(tint: .orange, prominent: true))
                     case .other(let command):
-                        Text("You already have a Claude Code status line, so Kosmodock leaves it alone. To see the limits here, make it also save `rate_limits` to ~/.config/kosmodock/claude-limits.json.")
+                        Text("You already have a Claude Code status line, so Kosmodock leaves it alone. To see the limits here, make it also save its input to ~/.config/kosmodock/claude-status.json.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
