@@ -177,6 +177,21 @@ enum Format {
         return String(format: "%.0f MB", locale: locale, mib)
     }
 
+    /// Network speed: "176 KB/s", "2.3 MB/s"; `short` drops the "B/s" ("2.3M").
+    static func rate(_ bytesPerSecond: Double, short: Bool = false) -> String {
+        let units = short ? ["", "K", "M", "G"] : ["B/s", "KB/s", "MB/s", "GB/s"]
+        var value = max(0, bytesPerSecond)
+        var unit = 0
+        while value >= 1000, unit < units.count - 1 {
+            value /= 1024
+            unit += 1
+        }
+        let number = value < 10 && unit > 0
+            ? String(format: "%.1f", locale: L10n.locale, value)
+            : String(format: "%.0f", locale: L10n.locale, value)
+        return short ? number + units[unit] : "\(number) \(units[unit])"
+    }
+
     /// Compact percentage for badges: "12%", "0.4%".
     static func percent(_ value: Double) -> String {
         if value >= 0.05, value < 1 { return String(format: "%.1f%%", locale: L10n.locale, value) }

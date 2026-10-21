@@ -48,7 +48,7 @@ See [Build & run](#build--run) below. It takes a minute with Xcode or the Comman
 ## Privacy
 
 - **Nothing leaves your Mac.** Kosmodock makes no internet requests: no analytics, no update checks, no telemetry. The only sockets it opens are connections to `127.0.0.1` to check whether ports you configured are listening.
-- **What it reads:** CPU, memory and process usage through Mach/libproc; listening ports through `lsof`; Podman/Docker status through their CLIs (`podman machine list`, `podman ps`); and the output of shell commands **you** put in `config.json`.
+- **What it reads:** CPU, memory and process usage through Mach/libproc; listening ports through `lsof`; Podman/Docker status through their CLIs (`podman machine list`, `podman ps`); and the output of shell commands **you** put in `config.json`. With a Battery or Network widget on the dock, it also reads the battery's charge, state and cycle count through IOKit, and the network interfaces' byte counters through `sysctl` (totals only, no connections or traffic contents).
 - **Accessibility** is used only to move, resize, minimize, restore and raise windows, and to be notified when windows move or minimize. It reads window frames and titles (the titles are shown in *Minimized Windows*), never window contents.
 - **Global input:** to animate minimizes and close popovers, Kosmodock observes mouse clicks system-wide and checks key presses for exactly two keys, ⌘M and Escape. Nothing is logged or stored.
 - **The native Dock:** *Hide the native macOS Dock* changes four `com.apple.dock` preferences and restores your original values whenever Kosmodock quits or crashes (see [Native Dock suppression & recovery](#native-dock-suppression--recovery)). To restore them by hand: `defaults delete com.apple.dock autohide-delay; defaults write com.apple.dock autohide -bool false; killall Dock`.
@@ -119,7 +119,9 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
 - The **⊞ button** at the end of the dock, and the menu bar icon, open the Kosmodock menu: Settings, hide native Dock, Focus Mode, expansion mode, reload/open config, Quit.
 - **Windows never sit behind the dock.** With *Reserve screen space* on (the default), an Accessibility observer watches every app. When a window reaches into the dock's band, it is moved up, or shrunk if it's taller than the work area. Tiling presets use the same work area. Turn the option off to get **Intellihide**: the dock slides below the screen edge while a window overlaps it, and comes back when the pointer touches the bottom edge.
 - **Minimize into groups.** Minimizing a window plays a card animation from the window into its group's capsule, and the capsule bounces. The minimize can come from the yellow button, ⌘M, *Minimize to Group* in the menu, or clicking the frontmost app's icon. The capsule shows a counter, and the group's popover lists *Minimized Windows*; clicking one plays the reverse animation and restores it. Clicking an app whose windows are all minimized restores the most recent one.
-- The dock **adapts to screen width**. It steps down from full labels to a compact layout (icons over badge), then status dots, and finally scrolls.
+- **Widgets** sit on the dock after the groups: Clock, Battery, CPU & Memory, Network and Command. Each is square (one reading) or wide (a reading and its details), and clicking one opens its details: a month calendar, battery status and cycle count, CPU and memory, download and upload, or a command's output. Add and arrange them in Settings → Widgets.
+- **Styles and effects** live in Settings → Appearance. Pick one of six styles (Glass, Midnight, Graphite, Neon, Paper, Floating) and fine-tune its colors, border, glow and corners. Choose the hover effect (none, scale, or macOS-style magnification), the launch animation (bounce, pulse, shake) and the running-app indicator (dot, line or hidden, in the accent or group color).
+- The dock **adapts to screen width**. Every capsule takes the widest one's width while it fits, wide widgets turn square, and then the dock steps down from full labels to a compact layout (icons over badge), then status dots, and finally scrolls.
 
 ## Configuration
 
@@ -128,12 +130,20 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
 ```jsonc
 {
   "theme": {
-    "cornerRadius": 22, "glassOpacity": 0.35, "borderOpacity": 0.6,
+    "style": "glass",                                  // glass|midnight|graphite|neon|paper|floating
+    "surface": {                                       // the style's look; keys left out come from the style
+      "blur": true, "material": "hudWindow",           // hudWindow|popover|menu|sidebar|underWindowBackground|fullScreenUI
+      "fillTopHex": null, "fillBottomHex": null,       // null = the window background, following light/dark mode
+      "fillOpacity": 0.35, "borderHex": "#FFFFFF", "borderOpacity": 0.6, "borderWidth": 1,
+      "glowHex": "#FFFFFF", "glowOpacity": 0, "sheen": true, "cornerRadius": 22
+    },
     "iconSize": 34, "dockMargin": 10, "tileGap": 8,
     "dockClearance": 5,                                // gap between windows and the top of the dock
-    "springResponse": 0.32, "springDamping": 0.78,   // lower response = stiffer
-    "accentHex": "#8B7CFF", "material": "hudWindow",   // hudWindow|popover|menu|sidebar|underWindowBackground|fullScreenUI
-    "appearance": "system", "showGroupLabels": true
+    "springResponse": 0.32, "springDamping": 0.78,     // lower response = stiffer
+    "accentHex": "#8B7CFF", "appearance": "system", "showGroupLabels": true,
+    "hoverEffect": "scale",                            // none|scale|magnify
+    "launchAnimation": "bounce",                       // none|bounce|pulse|shake
+    "indicatorStyle": "dot", "indicatorColor": "accent" // dot|line|hidden, accent|group
   },
   "behavior": {
     "expansionMode": "bento", "suppressNativeDock": false, "focusMode": false, "showMenuBarIcon": true,
@@ -165,6 +175,11 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
       "widget": { "type": "customCommand", "label": "CI", "interval": 30,
                   "command": "gh run list -L1 --json conclusion -q '.[0].conclusion'" }
     }
+  ],
+  "tiles": [                                  // widgets after the groups
+    { "kind": "clock", "width": "wide", "showsSeconds": false },   // clock|battery|activity|network|command
+    { "kind": "battery", "width": "square" },                       // square|wide
+    { "kind": "command", "label": "Build", "command": "make -q && echo ok", "interval": 30 }
   ]
 }
 ```
@@ -220,12 +235,13 @@ Sources/Kosmodock
 ├── App/        KosmodockApp (@main), AppDelegate, AppModel (composition root, badges, actions), SnapshotRenderer (DEBUG)
 ├── Models/     DockConfig (lenient Codable), TelemetryModels, ContainerModels (Podman/Docker JSON parsing)
 ├── Services/   ConfigService + FileWatcher (hot reload), AppDiscovery, WorkspaceService,
-│               SystemMetrics (Mach/libproc sampler, lsof port scanner), TelemetryService,
+│               SystemMetrics (Mach/libproc sampler, lsof port scanner), SystemSensors (battery, network),
+│               TelemetryService,
 │               ContainerMonitorService, TilingEngine (pure layout math), WindowManagerService (AX),
 │               SystemDockManager, ShellRunner
 ├── Windowing/  FloatingPanel (non-activating NSPanel), DockController (sizing, anchoring, popovers),
 │               SettingsWindowController (+ status item menu, main menu for ⌘C/⌘V)
-└── Views/      DockRootView, GroupCapsuleView, BentoPopoverView, TelemetryWidgets, AppIconView, SettingsView, Theme
+└── Views/      DockRootView, GroupCapsuleView, BentoPopoverView, TelemetryWidgets, TileViews, AppIconView, SettingsView, Theme
 ```
 
 - UI types are `@MainActor`. The package uses Swift language mode 5 so AppKit, AX and Mach interop stays free of strict-concurrency noise.

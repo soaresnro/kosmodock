@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import IOKit.ps
 import SwiftUI
 import XCTest
 @testable import Kosmodock
@@ -97,6 +98,46 @@ final class ConfigDecodingTests: XCTestCase {
         )]
         let data = try JSONEncoder().encode(config)
         XCTAssertEqual(try JSONDecoder().decode(DockConfig.self, from: data), config)
+    }
+
+    /// The README's example is the reference for hand-written configs.
+    func testReadmeConfigExampleDecodes() throws {
+        let readme = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("README.md")
+        let text = try String(contentsOf: readme, encoding: .utf8)
+        let block = try XCTUnwrap(text.components(separatedBy: "```jsonc\n").dropFirst().first?.components(separatedBy: "```").first)
+        // Drop `//` comments, but not inside strings ("http://…").
+        var json = ""
+        var inString = false
+        var characters = block.makeIterator()
+        var pending: Character?
+        while let character = pending ?? characters.next() {
+            pending = nil
+            if inString {
+                json.append(character)
+                if character == "\\", let escaped = characters.next() { json.append(escaped) }
+                else if character == "\"" { inString = false }
+            } else if character == "\"" {
+                inString = true
+                json.append(character)
+            } else if character == "/", let next = characters.next() {
+                if next == "/" {
+                    while let skipped = characters.next(), skipped != "\n" {}
+                    json.append("\n")
+                } else {
+                    json.append(character)
+                    pending = next
+                }
+            } else {
+                json.append(character)
+            }
+        }
+        let config = try JSONDecoder().decode(DockConfig.self, from: Data(json.utf8))
+        XCTAssertEqual(config.theme.style, .glass)
+        XCTAssertFalse(config.theme.isCustomized, "the example shows the glass style's own values")
+        XCTAssertEqual(config.tiles.map(\.kind), [.clock, .battery, .command])
+        XCTAssertEqual(config.groups.count, 2)
     }
 
     func testDefaultConfigUsesInstalledApps() {
@@ -691,5 +732,86 @@ final class MagnifierTests: XCTestCase {
         XCTAssertEqual(theme.indicatorColor, .group)
         let defaults = ThemeConfig()
         XCTAssertEqual([defaults.hoverEffect.rawValue, defaults.launchAnimation.rawValue, defaults.indicatorStyle.rawValue, defaults.indicatorColor.rawValue], ["scale", "bounce", "dot", "accent"])
+    }
+}
+
+/// Widget tiles on the bar: config, battery and network readings.
+@MainActor
+final class TileTests: XCTestCase {
+    private func config(_ json: String) throws -> DockConfig {
+        try JSONDecoder().decode(DockConfig.self, from: Data(json.utf8))
+    }
+
+    func testConfigsWithoutTilesHaveNone() throws {
+        XCTAssertEqual(try config(#"{ "groups": [] }"#).tiles, [])
+    }
+
+    func testTilesGetUniqueIDsAndDefaults() throws {
+        let tiles = try config(#"{ "tiles": [ { "kind": "clock" }, { "kind": "clock", "width": "square" }, { "id": "clock", "kind": "battery" } ] }"#).tiles
+        XCTAssertEqual(tiles.map(\.id), ["clock", "clock-2", "clock-3"])
+        XCTAssertEqual(tiles.map(\.width), [.wide, .square, .wide])
+        XCTAssertEqual(tiles.map(\.kind), [.clock, .clock, .battery])
+    }
+
+    func testATileWithoutAKindIsReported() {
+        XCTAssertThrowsError(try config(#"{ "tiles": [ { "id": "x" } ] }"#)) { error in
+            XCTAssertTrue(ConfigService.describe(error).contains("tiles"))
+        }
+    }
+
+    func testTilesRoundTrip() throws {
+        var original = DockConfig()
+        original.tiles = [
+            DockTile(id: "clock", kind: .clock, width: .square, showsSeconds: true),
+            DockTile(id: "build", kind: .command, command: "make -q", label: "Build", interval: 30),
+        ]
+        XCTAssertEqual(try JSONDecoder().decode(DockConfig.self, from: JSONEncoder().encode(original)), original)
+    }
+
+    func testTileItemIDsNeverMatchAGroup() {
+        let tile = DockTile(id: "clock", kind: .clock)
+        XCTAssertEqual(AppModel.itemID(for: tile), "tile:clock")
+        XCTAssertFalse(DockConfig.slug("tile:clock").contains(":"), "group ids are slugs")
+        XCTAssertEqual(TelemetryService.commandKey(tile: tile), "tile:clock")
+    }
+
+    func testBatteryStatusFromPowerSource() {
+        let charging = PowerSource.status(from: [
+            kIOPSCurrentCapacityKey: 45, kIOPSMaxCapacityKey: 100, kIOPSIsChargingKey: true,
+            kIOPSPowerSourceStateKey: kIOPSACPowerValue, kIOPSTimeToFullChargeKey: 65,
+        ], cycleCount: 120)
+        XCTAssertEqual(charging, BatteryStatus(percent: 45, isCharging: true, isPluggedIn: true, isCharged: false, minutesRemaining: 65, cycleCount: 120))
+        XCTAssertEqual(BatteryLook.status(of: charging), "1:05 to full")
+
+        let estimating = PowerSource.status(from: [
+            kIOPSCurrentCapacityKey: 3_000, kIOPSMaxCapacityKey: 4_000, kIOPSIsChargingKey: false,
+            kIOPSPowerSourceStateKey: kIOPSBatteryPowerValue, kIOPSTimeToEmptyKey: -1,
+        ], cycleCount: nil)
+        XCTAssertEqual(estimating.percent, 75, "capacity can be in mAh")
+        XCTAssertNil(estimating.minutesRemaining, "-1 means macOS is still estimating")
+        XCTAssertEqual(BatteryLook.status(of: estimating), "Calculating…")
+
+        var onBattery = estimating
+        onBattery.minutesRemaining = 214
+        XCTAssertEqual(BatteryLook.status(of: onBattery), "3:34 left")
+        XCTAssertEqual(BatteryLook.status(of: BatteryStatus(percent: 80, isCharging: false, isPluggedIn: true, isCharged: false)), "Not charging")
+        XCTAssertEqual(BatteryLook.status(of: BatteryStatus(percent: 100, isCharging: false, isPluggedIn: true, isCharged: true)), "Charged")
+    }
+
+    func testNetworkRateFormatting() {
+        // The decimal separator follows the interface language.
+        let point = L10n.locale.decimalSeparator ?? "."
+        XCTAssertEqual(Format.rate(0), "0 B/s")
+        XCTAssertEqual(Format.rate(512), "512 B/s")
+        XCTAssertEqual(Format.rate(1_536), "1\(point)5 KB/s")
+        XCTAssertEqual(Format.rate(180_000), "176 KB/s")
+        XCTAssertEqual(Format.rate(2_400_000), "2\(point)3 MB/s")
+        XCTAssertEqual(Format.rate(2_400_000, short: true), "2\(point)3M")
+        XCTAssertEqual(Format.rate(-5), "0 B/s")
+    }
+
+    func testNetworkCountersReadThisMac() throws {
+        let totals = try XCTUnwrap(NetworkCounters.totals())
+        XCTAssertGreaterThan(totals.received + totals.sent, 0, "a Mac running the tests has used its network")
     }
 }

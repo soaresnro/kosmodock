@@ -7,6 +7,8 @@ struct GroupCapsuleView: View {
     @Environment(AppModel.self) private var model
     let group: DockGroup
     var density: DockDensity = .regular
+    /// Tells apart `ViewThatFits` candidates with the same density.
+    var variant = 0
     let namespace: Namespace.ID
     @ViewState private var isHovering = false
     @ViewState private var isPulsing = false
@@ -15,7 +17,7 @@ struct GroupCapsuleView: View {
     private var showsLabel: Bool { density == .regular && model.theme.showGroupLabels }
 
     private var isExpanded: Bool { model.expandedGroupID == group.id }
-    private var isHighlighted: Bool { isExpanded || model.popoverGroupID == group.id }
+    private var isHighlighted: Bool { isExpanded || model.popoverItemID == group.id }
 
     var body: some View {
         let theme = model.theme
@@ -173,10 +175,11 @@ struct GroupCapsuleView: View {
         .transition(.opacity)
     }
 
-    /// Density is part of the id: `ViewThatFits` keeps every candidate bar
-    /// in the graph, and matched-geometry ids must be unique among them.
+    /// Density and variant are part of the id: `ViewThatFits` keeps every
+    /// candidate bar in the graph, and matched-geometry ids must be unique
+    /// among them.
     private func iconID(_ app: DockApp) -> String {
-        "\(density.rawValue)/\(group.id)/\(app.id)"
+        "\(density.rawValue).\(variant)/\(group.id)/\(app.id)"
     }
 }
 

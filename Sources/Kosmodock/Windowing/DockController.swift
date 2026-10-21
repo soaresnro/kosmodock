@@ -44,7 +44,8 @@ final class GroupGeometryTracker {
 @MainActor
 @Observable
 final class PopoverState {
-    var groupID: String?
+    /// A group's id, or a tile's `AppModel.itemID(for:)`.
+    var itemID: String?
     var isPresented = false
     /// Horizontal anchor (0…1) of the capsule inside the popover, so the
     /// open/close scale animation grows out of the capsule.
@@ -325,20 +326,20 @@ final class DockController {
 
     // MARK: Popover
 
-    private func togglePopover(_ groupID: String) {
-        if popoverState.groupID == groupID, popoverState.isPresented {
+    private func togglePopover(_ itemID: String) {
+        if popoverState.itemID == itemID, popoverState.isPresented {
             closePopover()
         } else {
-            openPopover(groupID)
+            openPopover(itemID)
         }
     }
 
-    private func openPopover(_ groupID: String) {
+    private func openPopover(_ itemID: String) {
         hideTask?.cancel()
         model.windows.refreshTrust()
         let wasPresented = popoverState.isPresented
-        popoverState.groupID = groupID
-        model.popoverGroupID = groupID
+        popoverState.itemID = itemID
+        model.popoverItemID = itemID
 
         // Lay out synchronously so the measured size is known before the
         // panel is placed; the content stays transparent until presented.
@@ -349,20 +350,20 @@ final class DockController {
             Task { @MainActor [weak self] in self?.popoverState.isPresented = true }
         }
         installMonitors()
-        model.refreshTelemetry(for: groupID)
+        model.refreshTelemetry(for: itemID)
     }
 
     func closePopover() {
-        guard popoverState.groupID != nil else { return }
+        guard popoverState.itemID != nil else { return }
         popoverState.isPresented = false
-        model.popoverGroupID = nil
+        model.popoverItemID = nil
         removeMonitors()
         hideTask?.cancel()
         hideTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(240))
             guard let self, !Task.isCancelled else { return }
             self.popoverPanel.orderOut(nil)
-            self.popoverState.groupID = nil
+            self.popoverState.itemID = nil
             self.intellihide.evaluate()
         }
     }
@@ -386,10 +387,10 @@ final class DockController {
     }
 
     private func positionPopover(size requested: CGSize? = nil) {
-        guard let groupID = popoverState.groupID else { return }
+        guard let itemID = popoverState.itemID else { return }
         let size = requested ?? popoverPanel.frame.size
         let dockFrame = NSRect(origin: shownOrigin(for: dockPanel.frame.size), size: dockPanel.frame.size)
-        let anchorX = geometry.capsuleFrames[groupID].map { dockFrame.minX + $0.midX } ?? dockFrame.midX
+        let anchorX = geometry.capsuleFrames[itemID].map { dockFrame.minX + $0.midX } ?? dockFrame.midX
         let barTop = dockFrame.minY + inset + geometry.barSize.height
         let visible = dockScreen.visibleFrame
 

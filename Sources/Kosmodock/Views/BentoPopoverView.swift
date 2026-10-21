@@ -8,8 +8,14 @@ struct PopoverRootView: View {
 
     var body: some View {
         ZStack {
-            if let id = state.groupID, model.group(id: id) != nil {
-                BentoPopoverView(groupID: id)
+            if let id = state.itemID, model.group(id: id) != nil || model.tile(itemID: id) != nil {
+                Group {
+                    if let tile = model.tile(itemID: id) {
+                        TilePopoverView(tileID: tile.id)
+                    } else {
+                        BentoPopoverView(groupID: id)
+                    }
+                }
                     .fixedSize()
                     .background {
                         GeometryReader { proxy in

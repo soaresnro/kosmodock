@@ -42,11 +42,13 @@ enum L10n {
     // MARK: Texts saved in config.json
 
     // Kosmodock writes a few texts into config.json itself: the default System
-    // group's label and its command's fallback output. They're saved in English,
+    // group's label, its command's fallback output and a new command tile's
+    // label. They're saved in English,
     // and older configs may hold another language's spelling; either way they
     // show in the interface language. Text the user typed is shown as is.
     static let battery = configKey("Battery")
     static let acPower = configKey("AC power")
+    static let uptime = configKey("Uptime")
 
     /// `text` in the interface language when it is a config text in any
     /// language ("Bateria" shows as "Batería" in Spanish); otherwise unchanged.
@@ -67,7 +69,7 @@ enum L10n {
     }
 
     private static let configTextIndex = index(
-        of: [battery, acPower],
+        of: [battery, acPower, uptime],
         translations: AppLanguage.allCases.compactMap(\.lprojName)
             .compactMap { Bundle.main.path(forResource: $0, ofType: "lproj").flatMap(Bundle.init(path:)) }
             .map { bundle in { bundle.localizedString(forKey: $0, value: $0, table: nil) } }

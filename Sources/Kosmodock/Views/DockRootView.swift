@@ -39,11 +39,13 @@ struct CapsuleRow: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
         let widths = Self.widths(natural: sizes.map(\.width), equalized: subviews.map { $0[EqualizesWidthKey.self] }, spacing: spacing, maxWidth: maxWidth)
+        // The row's height, so tiles (which fill it) match the capsules.
+        let height = sizes.map(\.height).max() ?? 0
         var x = bounds.minX
         for index in subviews.indices {
             subviews[index].place(
                 at: CGPoint(x: x, y: bounds.midY), anchor: .leading,
-                proposal: ProposedViewSize(width: widths[index], height: sizes[index].height)
+                proposal: ProposedViewSize(width: widths[index], height: height)
             )
             x += widths[index] + spacing
         }
@@ -113,8 +115,11 @@ struct DockRootView: View {
     var body: some View {
         let maxWidth = model.dockMaxWidth
         ViewThatFits(in: .horizontal) {
+            // Tiles go square before capsules lose detail.
             DockBar(density: .regular, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
+            DockBar(density: .regular, squareTiles: true, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
             DockBar(density: .compact, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
+            DockBar(density: .compact, squareTiles: true, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
             DockBar(density: .minimal, namespace: iconNamespace, maxWidth: maxWidth, scrolls: false)
             DockBar(density: .minimal, namespace: iconNamespace, maxWidth: maxWidth, scrolls: true)
         }
@@ -135,6 +140,8 @@ struct DockRootView: View {
 struct DockBar: View {
     @Environment(AppModel.self) private var model
     let density: DockDensity
+    /// Wide tiles drawn square, a step before the next density.
+    var squareTiles = false
     let namespace: Namespace.ID
     let maxWidth: CGFloat
     let scrolls: Bool
@@ -167,7 +174,7 @@ struct DockBar: View {
     private var content: some View {
         CapsuleRow(spacing: density == .minimal ? 4 : 6, maxWidth: maxWidth - Self.padding * 2) {
             ForEach(model.config.groups) { group in
-                GroupCapsuleView(group: group, density: density, namespace: namespace)
+                GroupCapsuleView(group: group, density: density, variant: squareTiles ? 1 : 0, namespace: namespace)
                     .background {
                         GeometryReader { proxy in
                             Color.clear.preference(
@@ -178,8 +185,22 @@ struct DockBar: View {
                     }
                     .layoutValue(key: EqualizesWidthKey.self, value: model.expandedGroupID != group.id)
             }
-            if model.config.groups.isEmpty {
+            if model.config.groups.isEmpty, model.config.tiles.isEmpty {
                 EmptyDockHint()
+            }
+            if !model.config.tiles.isEmpty {
+                if !model.config.groups.isEmpty { TileDivider() }
+                ForEach(model.config.tiles) { tile in
+                    TileView(tile: tile, isSquare: squareTiles || density == .minimal)
+                        .background {
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: CapsuleFramesKey.self,
+                                    value: [AppModel.itemID(for: tile): proxy.frame(in: .named(DockSpace.name))]
+                                )
+                            }
+                        }
+                }
             }
             DockUtilityButton()
         }
