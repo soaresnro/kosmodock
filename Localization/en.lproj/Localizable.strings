@@ -637,3 +637,33 @@
 "Period" = "Period";
 "How much of the day, week, month or year has passed. Weeks start on the first weekday of the interface language." = "How much of the day, week, month or year has passed. Weeks start on the first weekday of the interface language.";
 "Start, pause, take laps and reset in its details. It keeps running while Kosmodock is closed." = "Start, pause, take laps and reset in its details. It keeps running while Kosmodock is closed.";
+
+/* Interaction */
+
+"%@ and %lld more" = "%@ and %lld more";
+"%lld windows" = "%lld windows";
+"1 window" = "1 window";
+"Add to Stack" = "Add to Stack";
+"After you switch it on, macOS may ask you to quit and reopen Kosmodock." = "After you switch it on, macOS may ask you to quit and reopen Kosmodock.";
+"Delay" = "Delay";
+"Focus the Dock with ⌃⌥D" = "Focus the Dock with ⌃⌥D";
+"Keyboard" = "Keyboard";
+"Move Down in Stack" = "Move Down in Stack";
+"Move Up in Stack" = "Move Up in Stack";
+"Move between items with ← and →, open one with Return or Space, turn a widget stack with ↑ and ↓, and leave with Esc." = "Move between items with ← and →, open one with Return or Space, turn a widget stack with ↑ and ↓, and leave with Esc.";
+"New Widget" = "New Widget";
+"Only for apps with 2 or more windows" = "Only for apps with 2 or more windows";
+"Optional. Window previews show a thumbnail of each window. Kosmodock captures a window only while you rest the pointer on its app's icon, keeps the picture for a few seconds in memory and never captures its own windows. Without it, the previews show the app's icon and the window titles." = "Optional. Window previews show a thumbnail of each window. Kosmodock captures a window only while you rest the pointer on its app's icon, keeps the picture for a few seconds in memory and never captures its own windows. Without it, the previews show the app's icon and the window titles.";
+"Resting the pointer on a running app's icon shows its windows above it. Click one to bring it to the front; minimized windows are dimmed and come back when clicked." = "Resting the pointer on a running app's icon shows its windows above it. Click one to bring it to the front; minimized windows are dimmed and come back when clicked.";
+"Screen Recording" = "Screen Recording";
+"Screen Recording access granted" = "Screen Recording access granted";
+"Screen Recording not allowed" = "Screen Recording not allowed";
+"Show window previews" = "Show window previews";
+"Show “%@”" = "Show “%@”";
+"Stack With" = "Stack With";
+"Stack · %lld widgets" = "Stack · %lld widgets";
+"Take Out of Stack" = "Take Out of Stack";
+"Thumbnails need Screen Recording (Permissions). Until then the cards show the app's icon." = "Thumbnails need Screen Recording (Permissions). Until then the cards show the app's icon.";
+"Ungroup Stack" = "Ungroup Stack";
+"Widget stack, %lld of %lld" = "Widget stack, %lld of %lld";
+"Window Previews" = "Window Previews";

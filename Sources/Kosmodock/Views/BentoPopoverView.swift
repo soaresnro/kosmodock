@@ -336,6 +336,7 @@ private struct AppTile: View {
         .scaleEffect(isHovering && model.theme.hoverEffect == .scale ? 1.03 : 1)
         .animation(model.spring, value: isHovering)
         .onHover { isHovering = $0 }
+        .windowPreviews(for: app)
         .appMenu(app, group: group)
         .help(running ? L10n.tr("Focus %@", model.workspace.displayName(for: app)) : L10n.tr("Launch %@", model.workspace.displayName(for: app)))
     }

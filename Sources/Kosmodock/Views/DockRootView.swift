@@ -220,7 +220,7 @@ struct DockBar: View {
                     case .app(let app):
                         PinnedAppView(app: app, density: density)
                     case .tile(let tile):
-                        TileView(tile: tile, isSquare: squareTiles || density == .minimal)
+                        BarTileView(tile: tile, isSquare: squareTiles || density == .minimal)
                     case .extra(let extra):
                         BarExtraView(extra: extra, density: density)
                     }
@@ -236,6 +236,7 @@ struct DockBar: View {
                 }
                 .layoutValue(key: EqualizesWidthKey.self, value: item.equalizesWidth(expandedGroupID: model.expandedGroupID))
                 .layoutValue(key: FlexibleWidthKey.self, value: item.isFlexibleSpacer)
+                .keyboardFocusRing(item.id)
             }
             if items.isEmpty {
                 EmptyDockHint()

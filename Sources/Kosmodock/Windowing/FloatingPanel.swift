@@ -4,7 +4,8 @@ import SwiftUI
 /// Borderless, transparent, non-activating panel used for the dock bar and
 /// the Bento popovers. Clicking it never steals focus from the frontmost app.
 final class FloatingPanel: NSPanel {
-    private let allowsKey: Bool
+    /// The dock turns it on while it has keyboard focus (`DockKeyboardFocus`).
+    var allowsKey: Bool
 
     init(level: NSWindow.Level, allowsKey: Bool) {
         self.allowsKey = allowsKey

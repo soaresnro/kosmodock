@@ -94,6 +94,8 @@ final class WorkspaceSwipeMonitor {
     private weak var model: AppModel?
     private var tracker = WorkspaceSwipeTracker()
     private var monitor: Any?
+    /// Scroll that belongs to something else on the bar (a widget stack).
+    var yields: (NSEvent) -> Bool = { _ in false }
 
     init(panel: NSWindow, model: AppModel) {
         self.panel = panel
@@ -107,7 +109,7 @@ final class WorkspaceSwipeMonitor {
 
     /// Handles `event` when it's for the dock; true keeps it from the dock.
     private func consumes(_ event: NSEvent) -> Bool {
-        guard let panel, event.window === panel, let model, model.canSwitchWorkspaces else { return false }
+        guard let panel, event.window === panel, let model, model.canSwitchWorkspaces, !yields(event) else { return false }
         let withCommand = event.modifierFlags.contains(.command)
         // A bar too wide for the screen scrolls; only ⌘ + scroll switches then.
         if !withCommand, Self.containsScrollView(panel.contentView) { return false }

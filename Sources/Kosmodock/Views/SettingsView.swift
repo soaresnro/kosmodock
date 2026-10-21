@@ -572,7 +572,7 @@ private struct DockItemRow: View {
         switch item {
         case .group(let group): group.apps.count == 1 ? L10n.tr("Group · 1 app") : L10n.tr("Group · %lld apps", group.apps.count)
         case .app: L10n.tr("App")
-        case .tile(let tile): L10n.tr("Widget · %@", tile.width.title)
+        case .tile(let tile): model.config.stack(containing: tile.id).map { L10n.tr("Stack · %lld widgets", $0.count) } ?? L10n.tr("Widget · %@", tile.width.title)
         case .extra(let extra): extra.subtitle
         }
     }
@@ -1144,6 +1144,8 @@ private struct BehaviorSettingsView: View {
             } header: {
                 Text("App menus")
             }
+            WindowPreviewSettingsSection()
+            DockKeyboardFocusSettingsSection()
             Section {
                 Toggle(isOn: model.binding(\.behavior.suppressNativeDock)) {
                     Text("Hide the native macOS Dock while Kosmodock runs")
@@ -1282,6 +1284,7 @@ private struct PermissionsSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            ScreenRecordingPermissionSection()
         }
         .formStyle(.grouped)
         .navigationTitle("Permissions")

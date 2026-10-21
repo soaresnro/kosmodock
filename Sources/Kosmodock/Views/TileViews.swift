@@ -43,12 +43,7 @@ struct TileView: View {
                 withAnimation(.easeOut(duration: 0.15)) { isHovering = hovering }
             }
             .scaleEffect(isHovering && theme.hoverEffect != .none ? 1.04 : 1, anchor: .bottom)
-            .contextMenu {
-                Button("Show Details") { model.tap(tile) }
-                Button("Edit Widgets…") { model.openSettings(.tiles) }
-                Divider()
-                Button("Remove from Dock") { model.deleteTile(id: tile.id) }
-            }
+            .contextMenu { TileContextMenu(tile: tile) }
             .help(tile.title)
     }
 }

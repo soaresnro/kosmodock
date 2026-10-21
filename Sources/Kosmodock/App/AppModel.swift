@@ -63,6 +63,8 @@ final class AppModel {
     let trash = TrashService()
     /// The bar before the last edit (`editBar`), for "Undo Last Dock Change".
     var dockUndo = DockBarUndo()
+    /// Which tile each widget stack shows.
+    let widgetStacks = WidgetStackSelection()
 
     /// Group expanded inline in accordion mode.
     var expandedGroupID: String?
@@ -73,6 +75,8 @@ final class AppModel {
     var dockMaxWidth: CGFloat = max(400, (NSScreen.screens.first?.visibleFrame.width ?? 1280) - 24)
     /// Incremented to make a capsule pulse (a window just landed in it).
     var pulseTokens: [String: Int] = [:]
+    /// Bar item with the keyboard focus ring (`DockKeyboardFocus`).
+    var keyboardFocusItemID: String?
 
     // Wired by the window layer.
     @ObservationIgnored var presentPopover: ((String) -> Void)?
@@ -80,6 +84,8 @@ final class AppModel {
     @ObservationIgnored var openSettingsHandler: ((SettingsSection?) -> Void)?
     @ObservationIgnored var safeWorkAreaProvider: (() -> SafeWorkArea?)?
     @ObservationIgnored var popUpMainMenu: (() -> Void)?
+    /// An app icon's hover, with its frame in its window (`WindowPreviewController`).
+    @ObservationIgnored var windowPreviewHover: ((DockApp, CGRect, Bool) -> Void)?
 
     init(configService: ConfigService) {
         self.configService = configService
@@ -631,14 +637,15 @@ final class AppModel {
                     self.configService.update { config in
                         guard let index = config.tiles.firstIndex(where: { $0.id == id }) else { return }
                         config.tiles[index] = newValue
+                        config.matchStackWidths(to: id)
                     }
                 }
             }
         )
     }
 
-    @discardableResult
-    func addTile(_ kind: TileKind) -> String {
+    /// A new tile of `kind` with the options it starts with.
+    static func newTile(_ kind: TileKind) -> DockTile {
         var tile = DockTile(id: kind.rawValue, kind: kind)
         if kind == .command {
             tile.label = L10n.uptime
@@ -646,6 +653,12 @@ final class AppModel {
             tile.interval = 60
         }
         tile.applyTimeDefaults()
+        return tile
+    }
+
+    @discardableResult
+    func addTile(_ kind: TileKind) -> String {
+        let tile = Self.newTile(kind)
         editBar { config in
             config.addToBar { $0.tiles = DockConfig.normalizedTileIDs($0.tiles + [tile]) }
         }
@@ -654,6 +667,7 @@ final class AppModel {
 
     func deleteTile(id: String) {
         editBar { config in
+            config.removeTileFromStack(id)
             config.removeFromBar("tile:\(id)")
             config.tiles.removeAll { $0.id == id }
         }

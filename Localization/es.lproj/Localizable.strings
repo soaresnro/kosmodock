@@ -637,3 +637,33 @@
 "Period" = "Periodo";
 "How much of the day, week, month or year has passed. Weeks start on the first weekday of the interface language." = "Cuánto ha pasado del día, la semana, el mes o el año. Las semanas empiezan el primer día de la semana del idioma de la interfaz.";
 "Start, pause, take laps and reset in its details. It keeps running while Kosmodock is closed." = "Inicia, pausa, marca vueltas y reinicia en sus detalles. Sigue contando aunque Kosmodock esté cerrado.";
+
+/* Interaction */
+
+"%@ and %lld more" = "%@ y %lld más";
+"%lld windows" = "%lld ventanas";
+"1 window" = "1 ventana";
+"Add to Stack" = "Añadir a la pila";
+"After you switch it on, macOS may ask you to quit and reopen Kosmodock." = "Después de activarlo, macOS puede pedirte que cierres y vuelvas a abrir Kosmodock.";
+"Delay" = "Retardo";
+"Focus the Dock with ⌃⌥D" = "Enfocar el Dock con ⌃⌥D";
+"Keyboard" = "Teclado";
+"Move Down in Stack" = "Bajar en la pila";
+"Move Up in Stack" = "Subir en la pila";
+"Move between items with ← and →, open one with Return or Space, turn a widget stack with ↑ and ↓, and leave with Esc." = "Pasa de un elemento a otro con ← y →, abre uno con Retorno o Espacio, gira una pila de widgets con ↑ y ↓ y sal con Esc.";
+"New Widget" = "Nuevo widget";
+"Only for apps with 2 or more windows" = "Solo para apps con 2 ventanas o más";
+"Optional. Window previews show a thumbnail of each window. Kosmodock captures a window only while you rest the pointer on its app's icon, keeps the picture for a few seconds in memory and never captures its own windows. Without it, the previews show the app's icon and the window titles." = "Opcional. Las vistas previas de ventanas muestran una miniatura de cada ventana. Kosmodock captura una ventana solo mientras el puntero descansa sobre el icono de su app, guarda la imagen unos segundos en memoria y nunca captura sus propias ventanas. Sin él, las vistas previas muestran el icono de la app y los títulos de las ventanas.";
+"Resting the pointer on a running app's icon shows its windows above it. Click one to bring it to the front; minimized windows are dimmed and come back when clicked." = "Al dejar el puntero sobre el icono de una app abierta se muestran sus ventanas encima. Haz clic en una para traerla al frente; las ventanas minimizadas aparecen atenuadas y vuelven al hacer clic.";
+"Screen Recording" = "Grabación de pantalla";
+"Screen Recording access granted" = "Acceso de Grabación de pantalla concedido";
+"Screen Recording not allowed" = "Grabación de pantalla no permitida";
+"Show window previews" = "Mostrar vistas previas de ventanas";
+"Show “%@”" = "Mostrar “%@”";
+"Stack With" = "Apilar con";
+"Stack · %lld widgets" = "Pila · %lld widgets";
+"Take Out of Stack" = "Sacar de la pila";
+"Thumbnails need Screen Recording (Permissions). Until then the cards show the app's icon." = "Las miniaturas necesitan Grabación de pantalla (Permisos). Hasta entonces, las tarjetas muestran el icono de la app.";
+"Ungroup Stack" = "Deshacer la pila";
+"Widget stack, %lld of %lld" = "Pila de widgets, %lld de %lld";
+"Window Previews" = "Vistas previas de ventanas";

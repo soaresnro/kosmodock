@@ -14,12 +14,17 @@ final class HotKeyCenter {
         var modifiers: UInt32
     }
 
-    /// 'KDWS', which tells our hotkey events apart from other components'.
-    private static let signature: OSType = 0x4B44_5753
+    /// Tells this center's hotkey events apart from other centers' and
+    /// components'. 'KDWS' is the workspaces'.
+    nonisolated private let signature: OSType
 
     private var refs: [EventHotKeyRef] = []
     private var actions: [UInt32: @MainActor () -> Void] = [:]
     private var handler: EventHandlerRef?
+
+    init(signature: OSType = 0x4B44_5753) {
+        self.signature = signature
+    }
 
     /// Replaces every registered shortcut.
     func register(_ shortcuts: [(Shortcut, @MainActor () -> Void)]) {
@@ -30,7 +35,7 @@ final class HotKeyCenter {
             let id = UInt32(index + 1)
             var ref: EventHotKeyRef?
             let status = RegisterEventHotKey(
-                shortcut.keyCode, shortcut.modifiers, EventHotKeyID(signature: Self.signature, id: id),
+                shortcut.keyCode, shortcut.modifiers, EventHotKeyID(signature: signature, id: id),
                 GetApplicationEventTarget(), 0, &ref
             )
             if status == noErr, let ref {
@@ -59,8 +64,8 @@ final class HotKeyCenter {
                 event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
                 nil, MemoryLayout<EventHotKeyID>.size, nil, &hotKeyID
             )
-            guard status == noErr, hotKeyID.signature == HotKeyCenter.signature else { return OSStatus(eventNotHandledErr) }
             let center = Unmanaged<HotKeyCenter>.fromOpaque(userData).takeUnretainedValue()
+            guard status == noErr, hotKeyID.signature == center.signature else { return OSStatus(eventNotHandledErr) }
             MainActor.assumeIsolated { center.actions[hotKeyID.id]?() }
             return noErr
         }, 1, &pressed, Unmanaged.passUnretained(self).toOpaque(), &handler)

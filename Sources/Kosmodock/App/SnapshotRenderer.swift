@@ -73,6 +73,12 @@ enum SnapshotRenderer {
             }
         }
         model.configService.preview { $0.folders = folders }
+        model.keyboardFocusItemID = model.barItems.dropFirst().first?.id
+        write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock-focus", in: directory)
+        model.keyboardFocusItemID = nil
+        if let app = model.config.groups.first?.apps.first {
+            write(WindowPreviewCardsView.sample(app: app), model: model, proposed: nil, name: "window-previews", in: directory)
+        }
 
         let theme = model.config.theme
         for style in DockStyle.allCases {
