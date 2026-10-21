@@ -49,6 +49,9 @@ enum L10n {
     static let battery = configKey("Battery")
     static let acPower = configKey("AC power")
     static let uptime = configKey("Uptime")
+    // Workspace names Kosmodock gives.
+    static let mainWorkspace = configKey("Main")
+    static let newWorkspace = configKey("New Workspace")
 
     /// `text` in the interface language when it is a config text in any
     /// language ("Bateria" shows as "Batería" in Spanish); otherwise unchanged.
@@ -69,7 +72,7 @@ enum L10n {
     }
 
     private static let configTextIndex = index(
-        of: [battery, acPower, uptime],
+        of: [battery, acPower, uptime, mainWorkspace, newWorkspace],
         translations: AppLanguage.allCases.compactMap(\.lprojName)
             .compactMap { Bundle.main.path(forResource: $0, ofType: "lproj").flatMap(Bundle.init(path:)) }
             .map { bundle in { bundle.localizedString(forKey: $0, value: $0, table: nil) } }

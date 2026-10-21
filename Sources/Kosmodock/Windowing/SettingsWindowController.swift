@@ -103,6 +103,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         menu.addItem(item(L10n.tr("Kosmodock Settings…"), #selector(openSettings), key: ","))
         menu.addItem(.separator())
+        for workspaceItem in WorkspaceMenu.items(model: model) { menu.addItem(workspaceItem) }
 
         let dockItem = item(L10n.tr("Hide Native macOS Dock"), #selector(toggleNativeDock))
         dockItem.state = behavior.suppressNativeDock ? .on : .off
