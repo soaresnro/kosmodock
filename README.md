@@ -168,7 +168,7 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
 - **Styles and effects** live in Settings → Appearance. Pick one of six styles (Glass, Midnight, Graphite, Neon, Paper, Floating), or a seasonal one (Halloween, Haunted Night, Candy Corn, Christmas, Snowy Night, Candy Cane) whose decorations (lights, snow, bats, fog…) you turn on and off one by one. They stand still with Reduce Motion. Fine-tune its colors, gradient angle, border, glow, corners and reflections under the icons. Each style keeps its own edits when you switch to another and back. Choose the hover effect (none, scale, or macOS-style magnification), the launch animation (bounce, pulse, shake) and the running-app indicator (dot, line or hidden, in the accent or group color).
 - **App icons:** put PNGs in `~/.config/kosmodock/icon-packs/<pack>/`, named after each app (its name, bundle id or a slug; case and dashes don't matter), and pick the pack in Settings → Appearance → App Icons. An optional `pack.json` holds `name`, `author`, `padding` (0–0.4) and an `icons` map from app names to files. *Choose Icon…* in an app's right-click menu sets one app's icon. The apps themselves never change.
 - **Backups:** `config.json` is copied to `~/.config/kosmodock/backups/` at launch and quit (unchanged copies skipped, the 20 newest kept). Settings → Config File restores one after backing up the current config.
-- The dock **adapts to screen width**. Every capsule takes the widest one's width while it fits, wide widgets turn square, and then the dock steps down from full labels to a compact layout (icons over badge), then status dots, and finally scrolls.
+- The dock **adapts to screen width**. Each group takes the room its content needs and shows up to three app icons plus a "+N" count (*Same width for every group* in Settings → Appearance makes them all as wide as the widest). When the dock doesn't fit, groups show one icon less, then wide widgets turn square, and then the dock steps down from full labels to a compact layout (icons over badge), then status dots, and finally scrolls.
 
 ## Configuration
 
@@ -190,7 +190,7 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
     "iconSize": 34, "dockMargin": 10, "tileGap": 8,
     "dockClearance": 5,                                // gap between windows and the top of the dock
     "springResponse": 0.32, "springDamping": 0.78,     // lower response = stiffer
-    "accentHex": "#8B7CFF", "appearance": "system", "showGroupLabels": true,
+    "accentHex": "#8B7CFF", "appearance": "system", "showGroupLabels": true, "equalGroupWidths": false,
     "hoverEffect": "scale",                            // none|scale|magnify
     "launchAnimation": "bounce",                       // none|bounce|pulse|shake
     "indicatorStyle": "dot", "indicatorColor": "accent", // dot|line|hidden, accent|group

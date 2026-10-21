@@ -135,7 +135,7 @@ struct GroupCapsuleView: View {
     private func collapsedApps(iconSize: CGFloat) -> some View {
         HStack(spacing: 3) {
             // Grow in place only: spreading would widen the capsule, and with
-            // it every capsule (`CapsuleRow`).
+            // it the dock (and every capsule with equal group widths).
             MagnifyingRow(
                 items: Array(group.apps.prefix(miniIconLimit)), size: iconSize, spacing: 3,
                 maxScale: model.theme.hoverEffect == .magnify ? 1.3 : nil, spreads: false

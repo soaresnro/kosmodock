@@ -641,6 +641,14 @@ final class CapsuleRowTests: XCTestCase {
         XCTAssertEqual(NSHostingView(rootView: row.fixedSize()).fittingSize.width, 200)
         XCTAssertEqual(NSHostingView(rootView: fits).fittingSize.height, 10)
     }
+
+    /// A group with two apps used to stretch to the widest group's width.
+    func testGroupsTakeTheirOwnWidthAndThreeMiniIconsByDefault() throws {
+        let theme = try JSONDecoder().decode(ThemeConfig.self, from: Data("{}".utf8))
+        XCTAssertFalse(theme.equalGroupWidths)
+        XCTAssertEqual(DockDensity.regular.miniIconLimit, 3)
+        XCTAssertEqual(CapsuleRow.widths(natural: [200, 120], equalized: [false, false], spacing: 6, maxWidth: 1000), [200, 120])
+    }
 }
 
 /// Styles are presets of the bar's surface; old configs keep their glass.
