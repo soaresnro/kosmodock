@@ -136,7 +136,15 @@ final class ConfigDecodingTests: XCTestCase {
         let config = try JSONDecoder().decode(DockConfig.self, from: Data(json.utf8))
         XCTAssertEqual(config.theme.style, .glass)
         XCTAssertFalse(config.theme.isCustomized, "the example shows the glass style's own values")
-        XCTAssertEqual(config.tiles.map(\.kind), [.clock, .battery, .command])
+        XCTAssertEqual(config.tiles.map(\.kind), [
+            .clock, .battery, .network, .command, .timer, .pomodoro, .countdown, .timeProgress, .pet, .files, .bookmarks,
+            .water, .clipboard, .weather,
+        ])
+        XCTAssertEqual(config.tileStacks["battery"], ["battery", "network"])
+        XCTAssertEqual(config.folders.map(\.preset), [.downloads])
+        XCTAssertEqual(config.spacers.map(\.size), [.small])
+        XCTAssertTrue(config.showsTrash)
+        XCTAssertEqual(config.allItemIDs.prefix(5), ["app:com.apple.finder", "backend", "tile:clock", "spacer:gap", "folder:downloads"])
         XCTAssertEqual(config.groups.count, 2)
         XCTAssertEqual(config.workspaces.map(\.id), ["work"])
         XCTAssertEqual(config.barOrder, ["app:com.apple.finder", "backend", "tile:clock"], "the active workspace's items")
