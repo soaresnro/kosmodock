@@ -29,6 +29,16 @@ enum SnapshotRenderer {
             language = requested
             L10n.setLanguage(requested)
         }
+        // The config's tiles, or one of each kind, sampled before rendering.
+        let tiles = model.config.tiles
+        model.configService.preview { config in
+            guard config.tiles.isEmpty else { return }
+            config.tiles = TileKind.allCases.map { kind in
+                var tile = DockTile(id: kind.rawValue, kind: kind)
+                if kind == .command { tile.label = "Build"; tile.command = "echo 'All green'" }
+                return tile
+            }
+        }
         model.telemetry.start()
         model.containers.setEnabled(true)
         try? await Task.sleep(for: .seconds(7))
@@ -36,6 +46,16 @@ enum SnapshotRenderer {
         injectSampleMinimizedWindows(into: model)
         let width = model.dockMaxWidth + DockMetrics.shadowInset * 2
         let geometry = GroupGeometryTracker()
+
+        write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock-tiles", in: directory)
+        for tile in model.config.tiles {
+            write(TilePopoverView(tileID: tile.id).fixedSize(), model: model, proposed: nil, name: "popover-tile-\(tile.id)", in: directory)
+        }
+        model.configService.preview { config in
+            for index in config.tiles.indices { config.tiles[index].width = .square }
+        }
+        write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock-tiles-square", in: directory)
+        model.configService.preview { $0.tiles = tiles }
         write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock", in: directory)
 
         let theme = model.config.theme

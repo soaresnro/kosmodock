@@ -10,6 +10,7 @@ enum SettingsSection: Hashable {
     case telemetry
     case permissions
     case config
+    case tiles
 }
 
 /// Composition root and UI-facing facade over the services.
@@ -28,8 +29,8 @@ final class AppModel {
 
     /// Group expanded inline in accordion mode.
     var expandedGroupID: String?
-    /// Group whose Bento popover is open.
-    var popoverGroupID: String?
+    /// Group (or tile, by `itemID(for:)`) whose popover is open.
+    var popoverItemID: String?
     var settingsSelection: SettingsSection? = .appearance
     /// Widest the dock bar may be on its screen; set by the window layer.
     var dockMaxWidth: CGFloat = max(400, (NSScreen.screens.first?.visibleFrame.width ?? 1280) - 24)
@@ -156,6 +157,19 @@ final class AppModel {
         config.groups.first { $0.id == id }
     }
 
+    func tile(id: String) -> DockTile? {
+        config.tiles.first { $0.id == id }
+    }
+
+    /// The id a tile goes by where groups' ids are used too: its popover and
+    /// its frame on the bar. Group ids never contain a colon.
+    static func itemID(for tile: DockTile) -> String { "tile:\(tile.id)" }
+
+    func tile(itemID: String) -> DockTile? {
+        guard itemID.hasPrefix("tile:") else { return nil }
+        return tile(id: String(itemID.dropFirst(5)))
+    }
+
     func tint(for group: DockGroup) -> Color {
         Color(hex: group.tintHex) ?? accent
     }
@@ -176,6 +190,10 @@ final class AppModel {
                 expandedGroupID = expandedGroupID == group.id ? nil : group.id
             }
         }
+    }
+
+    func tap(_ tile: DockTile) {
+        presentPopover?(Self.itemID(for: tile))
     }
 
     /// Opens the Bento details for a group regardless of its expansion mode.
@@ -308,9 +326,13 @@ final class AppModel {
         openSettingsHandler?(section)
     }
 
-    func refreshTelemetry(for groupID: String) {
+    func refreshTelemetry(for itemID: String) {
         telemetry.refreshNow()
-        guard let group = group(id: groupID) else { return }
+        if let tile = tile(itemID: itemID) {
+            if tile.kind == .command { telemetry.runCommandNow(for: tile) }
+            return
+        }
+        guard let group = group(id: itemID) else { return }
         if group.widget.type == .podman { Task { await containers.refresh() } }
         telemetry.runCommandsNow(for: group)
     }
@@ -483,6 +505,49 @@ final class AppModel {
         configService.update { $0.groups.move(fromOffsets: source, toOffset: destination) }
     }
 
+    func tileBinding(id: String) -> Binding<DockTile> {
+        Binding(
+            get: {
+                MainActor.assumeIsolated { self.tile(id: id) ?? DockTile(id: id, kind: .clock) }
+            },
+            set: { newValue in
+                MainActor.assumeIsolated {
+                    self.configService.update { config in
+                        guard let index = config.tiles.firstIndex(where: { $0.id == id }) else { return }
+                        config.tiles[index] = newValue
+                    }
+                }
+            }
+        )
+    }
+
+    @discardableResult
+    func addTile(_ kind: TileKind) -> String {
+        var tile = DockTile(id: kind.rawValue, kind: kind)
+        if kind == .command {
+            tile.label = L10n.uptime
+            tile.command = "uptime | sed 's/.*up \\([^,]*\\),.*/\\1/'"
+            tile.interval = 60
+        }
+        configService.update { config in
+            config.tiles = DockConfig.normalizedTileIDs(config.tiles + [tile])
+        }
+        return config.tiles.last?.id ?? tile.id
+    }
+
+    func deleteTile(id: String) {
+        configService.update { $0.tiles.removeAll { $0.id == id } }
+    }
+
+    func moveTile(id: String, by offset: Int) {
+        configService.update { config in
+            guard let index = config.tiles.firstIndex(where: { $0.id == id }) else { return }
+            let target = min(max(0, index + offset), config.tiles.count - 1)
+            guard target != index else { return }
+            config.tiles.swapAt(index, target)
+        }
+    }
+
     // MARK: Config reactions
 
     private static func needsContainerMonitor(_ config: DockConfig) -> Bool {
@@ -507,7 +572,8 @@ final class AppModel {
         if let id = expandedGroupID, !new.groups.contains(where: { $0.id == id }) {
             expandedGroupID = nil
         }
-        if let id = popoverGroupID, !new.groups.contains(where: { $0.id == id }) {
+        if let id = popoverItemID, !new.groups.contains(where: { $0.id == id }),
+           !new.tiles.contains(where: { Self.itemID(for: $0) == id }) {
             dismissPopover?()
         }
     }

@@ -324,6 +324,68 @@ enum IndicatorColor: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// What a widget tile on the bar shows.
+enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
+    case clock
+    case battery
+    case activity
+    case network
+    case command
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .clock: L10n.tr("Clock")
+        case .battery: L10n.tr("Battery")
+        case .activity: L10n.tr("CPU & Memory")
+        case .network: L10n.tr("Network")
+        case .command: L10n.tr("Command")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .clock: "clock"
+        case .battery: "battery.75percent"
+        case .activity: "cpu"
+        case .network: "arrow.up.arrow.down"
+        case .command: "terminal"
+        }
+    }
+}
+
+enum TileWidth: String, Codable, CaseIterable, Identifiable, Sendable {
+    /// One icon wide, for a single reading.
+    case square
+    /// Room for a reading and its details.
+    case wide
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .square: L10n.tr("Square")
+        case .wide: L10n.tr("Wide")
+        }
+    }
+}
+
+/// A widget on the bar on its own, after the group capsules. Its width comes
+/// from `width`, never from what it shows, so readings don't resize the dock.
+struct DockTile: Codable, Equatable, Identifiable, Sendable {
+    var id: String
+    var kind: TileKind
+    var width: TileWidth = .wide
+    /// Clock: show seconds in the wide tile and the details.
+    var showsSeconds = false
+    /// Command: what to run and its label.
+    var command: String?
+    var label: String?
+    /// Command: seconds between runs; `telemetry.pollInterval` when unset.
+    var interval: Double?
+}
+
 /// Interface language. `system` follows macOS (English when unsupported).
 enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case system
@@ -379,6 +441,7 @@ struct DockConfig: Codable, Equatable, Sendable {
     var behavior = BehaviorConfig()
     var telemetry = TelemetryConfig()
     var groups: [DockGroup] = []
+    var tiles: [DockTile] = []
 }
 
 struct ThemeConfig: Codable, Equatable, Sendable {
@@ -509,6 +572,26 @@ extension DockConfig {
         behavior = try c.decode(.behavior, or: d.behavior)
         telemetry = try c.decode(.telemetry, or: d.telemetry)
         groups = DockConfig.normalizedIDs(try c.decode(.groups, or: []))
+        tiles = DockConfig.normalizedTileIDs(try c.decode(.tiles, or: []))
+    }
+
+    /// Unique tile ids, derived from the kind when missing.
+    static func normalizedTileIDs(_ tiles: [DockTile]) -> [DockTile] {
+        var seen = Set<String>()
+        return tiles.map { tile in
+            var tile = tile
+            var base = tile.id.trimmingCharacters(in: .whitespacesAndNewlines)
+            if base.isEmpty { base = tile.kind.rawValue }
+            var candidate = base
+            var suffix = 2
+            while seen.contains(candidate) {
+                candidate = "\(base)-\(suffix)"
+                suffix += 1
+            }
+            seen.insert(candidate)
+            tile.id = candidate
+            return tile
+        }
     }
 
     /// Gives every group a unique, stable id (derived from its name when missing)
@@ -655,6 +738,20 @@ extension TelemetryConfig {
         runtimePath = try c.decodeIfPresent(String.self, forKey: .runtimePath)
         fallbackToDocker = try c.decode(.fallbackToDocker, or: d.fallbackToDocker)
         commandTimeout = try c.decode(.commandTimeout, or: d.commandTimeout)
+    }
+}
+
+extension DockTile {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(.id, or: "")
+        // No sensible default: a tile without a kind is reported.
+        kind = try c.decode(TileKind.self, forKey: .kind)
+        width = try c.decode(.width, or: .wide)
+        showsSeconds = try c.decode(.showsSeconds, or: false)
+        command = try c.decodeIfPresent(String.self, forKey: .command)
+        label = try c.decodeIfPresent(String.self, forKey: .label)
+        interval = try c.decodeIfPresent(Double.self, forKey: .interval)
     }
 }
 

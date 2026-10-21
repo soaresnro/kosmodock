@@ -28,6 +28,7 @@ struct SettingsView: View {
                 ContentUnavailableView("Select a group", systemImage: "square.stack.3d.up")
             }
         case .appearance: AppearanceSettingsView()
+        case .tiles: TilesSettingsView()
         case .behavior: BehaviorSettingsView()
         case .telemetry: TelemetrySettingsView()
         case .permissions: PermissionsSettingsView()
@@ -57,6 +58,7 @@ private struct SettingsSidebar: View {
             }
             Section("Preferences") {
                 Label("Appearance", systemImage: "paintbrush.fill").tag(SettingsSection.appearance)
+                Label("Widgets", systemImage: "square.grid.2x2.fill").tag(SettingsSection.tiles)
                 Label("Behavior", systemImage: "slider.horizontal.3").tag(SettingsSection.behavior)
                 Label("Telemetry", systemImage: "waveform.path.ecg").tag(SettingsSection.telemetry)
                 Label("Permissions", systemImage: "lock.shield").tag(SettingsSection.permissions)
@@ -415,6 +417,105 @@ private struct LayoutChooser: View {
                 .help(layout.title)
             }
         }
+    }
+}
+
+// MARK: - Widgets
+
+/// The tiles on the bar, in order, each with its size and options.
+private struct TilesSettingsView: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let tiles = model.config.tiles
+        Form {
+            Section {
+                Text("Widgets sit on the Dock after the groups. Click one to see its details.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Menu {
+                    ForEach(TileKind.allCases) { kind in
+                        Button {
+                            model.addTile(kind)
+                        } label: {
+                            Label(kind.title, systemImage: kind.symbol)
+                        }
+                    }
+                } label: {
+                    Label("Add Widget", systemImage: "plus")
+                }
+                .fixedSize()
+            }
+            ForEach(Array(tiles.enumerated()), id: \.element.id) { index, tile in
+                TileEditorSection(tileID: tile.id, isFirst: index == 0, isLast: index == tiles.count - 1)
+            }
+        }
+        .formStyle(.grouped)
+        .navigationTitle("Widgets")
+    }
+}
+
+private struct TileEditorSection: View {
+    @Environment(AppModel.self) private var model
+    let tileID: String
+    let isFirst: Bool
+    let isLast: Bool
+
+    private var tile: Binding<DockTile> { model.tileBinding(id: tileID) }
+
+    var body: some View {
+        let current = tile.wrappedValue
+        Section {
+            Picker("Size", selection: tile.width) {
+                ForEach(TileWidth.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            switch current.kind {
+            case .clock:
+                Toggle("Show seconds", isOn: tile.showsSeconds)
+            case .command:
+                TextField("Label", text: optionalText(\.label))
+                TextField("Command", text: optionalText(\.command), prompt: Text(verbatim: "uptime"))
+                    .font(.system(.body, design: .monospaced))
+                Stepper(value: interval, in: 5...3600, step: 5) {
+                    Text(L10n.tr("Every %lld s", Int(interval.wrappedValue)))
+                }
+                Text("The first line of the output goes on the tile. Exit 0 is green, 1 is yellow, anything else red.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .battery, .activity, .network:
+                EmptyView()
+            }
+        } header: {
+            HStack {
+                Label(current.title, systemImage: current.kind.symbol)
+                Spacer()
+                Button { model.moveTile(id: tileID, by: -1) } label: { Label("Move up", systemImage: "chevron.up") }
+                    .disabled(isFirst)
+                    .help("Move up")
+                Button { model.moveTile(id: tileID, by: 1) } label: { Label("Move down", systemImage: "chevron.down") }
+                    .disabled(isLast)
+                    .help("Move down")
+                Button(role: .destructive) { model.deleteTile(id: tileID) } label: { Label("Remove from Dock", systemImage: "trash") }
+                    .help("Remove from Dock")
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+        }
+    }
+
+    private func optionalText(_ keyPath: WritableKeyPath<DockTile, String?>) -> Binding<String> {
+        Binding(
+            get: { tile.wrappedValue[keyPath: keyPath] ?? "" },
+            set: { tile.wrappedValue[keyPath: keyPath] = $0.isEmpty ? nil : $0 }
+        )
+    }
+
+    private var interval: Binding<Double> {
+        Binding(
+            get: { tile.wrappedValue.interval ?? model.config.telemetry.pollInterval },
+            set: { tile.wrappedValue.interval = $0 }
+        )
     }
 }
 
