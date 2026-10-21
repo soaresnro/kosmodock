@@ -509,3 +509,8 @@
 "Nothing on this workspace's Dock yet." = "Aún no hay nada en el Dock de este espacio de trabajo.";
 "Checked items are on this workspace's Dock, in this order. Add groups, apps and widgets in Settings › Dock; each one exists once, so editing it changes it in every workspace." = "Los elementos marcados están en el Dock de este espacio de trabajo, en este orden. Añade grupos, apps y widgets en Ajustes › Dock; cada uno existe una sola vez, así que editarlo lo cambia en todos los espacios de trabajo.";
 "This list is the active workspace's Dock. Items only other workspaces have are listed at the end." = "Esta lista es el Dock del espacio de trabajo activo. Los elementos que solo tienen otros espacios aparecen al final.";
+
+/* App menus */
+"Show the app's own items on right-click" = "Mostrar los elementos de la propia app con el clic derecho";
+"New Window, the window list and the rest of an app's Dock menu, read from the macOS Dock. Needs Accessibility access; the menu takes a moment longer to open." = "Nueva ventana, la lista de ventanas y el resto del menú que la app pone en el Dock, leídos del Dock de macOS. Necesita el acceso de Accesibilidad; el menú tarda un instante más en abrirse.";
+"App menus" = "Menús de las apps";

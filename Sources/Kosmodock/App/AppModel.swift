@@ -51,6 +51,8 @@ final class AppModel {
     let enforcer: BottomMarginEnforcer
     let minimizedWindows: MinimizedWindowTracker
     let dockBadges: DockBadgeService
+    /// The app's own Dock menu items, for right clicks on app icons.
+    let dockMenus: DockMenuService
     let workspaceSwitcher = WorkspaceSwitcher()
 
     /// Group expanded inline in accordion mode.
@@ -84,6 +86,7 @@ final class AppModel {
         enforcer = BottomMarginEnforcer(windows: windows)
         minimizedWindows = MinimizedWindowTracker(hub: hub, windowService: windows)
         dockBadges = DockBadgeService(windows: windows)
+        dockMenus = DockMenuService(windows: windows)
         if let first = configService.config.groups.first { settingsSelection = .group(first.id) }
         L10n.setLanguage(configService.config.behavior.language)
         configService.addObserver { [weak self] old, new in self?.configDidChange(from: old, to: new) }

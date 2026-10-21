@@ -1116,6 +1116,14 @@ private struct BehaviorSettingsView: View {
                 Text("Notifications")
             }
             Section {
+                Toggle(isOn: model.binding(\.behavior.showsAppDockMenu)) {
+                    Text("Show the app's own items on right-click")
+                    Text("New Window, the window list and the rest of an app's Dock menu, read from the macOS Dock. Needs Accessibility access; the menu takes a moment longer to open.")
+                }
+            } header: {
+                Text("App menus")
+            }
+            Section {
                 Toggle(isOn: model.binding(\.behavior.suppressNativeDock)) {
                     Text("Hide the native macOS Dock while Kosmodock runs")
                     Text("Sets autohide with a 1000s delay, minimize-to-application and the short “scale” minimize effect. Your original settings are restored on quit, crash, SIGINT/SIGTERM, or force quit.")

@@ -254,51 +254,8 @@ struct AppIconButton: View {
         .scaleEffect(isHovering && model.theme.hoverEffect == .scale ? 1.14 : 1, anchor: .bottom)
         .animation(model.spring, value: isHovering)
         .onHover { isHovering = $0 }
-        .contextMenu { AppContextMenu(app: app, group: group) }
+        .appMenu(app, group: group)
         .help(app.name)
-    }
-}
-
-/// An app's menu, in a group or pinned on its own (`group == nil`).
-struct AppContextMenu: View {
-    @Environment(AppModel.self) private var model
-    let app: DockApp
-    let group: DockGroup?
-
-    var body: some View {
-        if model.workspace.isRunning(app) {
-            Button("Focus") { model.workspace.focus(app) }
-            if group == nil {
-                Button("Minimize") { model.minimizeToGroup(app) }
-                let minimized = model.workspace.bundleID(for: app).map { model.minimizedWindows.windows(forBundleID: $0) } ?? []
-                if !minimized.isEmpty {
-                    Menu("Minimized Windows") {
-                        ForEach(minimized) { window in
-                            Button(window.title.isEmpty ? model.workspace.displayName(for: app) : window.title) { model.restore(window) }
-                        }
-                    }
-                }
-            } else {
-                Button("Minimize to Group") { model.minimizeToGroup(app) }
-            }
-            Button("Hide") { model.workspace.hide(app) }
-            Divider()
-            Button("Tile Left") { model.tile(app, region: .left) }
-            Button("Tile Right") { model.tile(app, region: .right) }
-            Button("Maximize") { model.tile(app, region: .maximize) }
-            Divider()
-            Button("Quit") { model.workspace.quit(app) }
-            Button("Force Quit") { model.workspace.forceQuit(app) }
-        } else {
-            Button("Launch") { model.open(app) }
-        }
-        Divider()
-        Button("Show in Finder") { model.workspace.revealInFinder(app) }
-        if let group {
-            Button(L10n.tr("Remove from %@", group.name)) { model.remove(app, from: group) }
-        } else {
-            Button("Remove from Dock") { model.unpinApp(itemID: DockConfig.itemID(forPinned: app)) }
-        }
     }
 }
 
@@ -350,7 +307,7 @@ struct PinnedAppView: View {
         .animation(model.spring, value: minimized)
         .onHover { isHovering = $0 }
         .onChange(of: model.pulseTokens[itemID] ?? 0) { _, _ in pulse() }
-        .contextMenu { AppContextMenu(app: app, group: nil) }
+        .appMenu(app, group: nil)
         .accessibilityLabel(model.workspace.displayName(for: app))
         .help(model.workspace.displayName(for: app))
     }

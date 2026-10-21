@@ -509,3 +509,8 @@
 "Nothing on this workspace's Dock yet." = "Nothing on this workspace's Dock yet.";
 "Checked items are on this workspace's Dock, in this order. Add groups, apps and widgets in Settings › Dock; each one exists once, so editing it changes it in every workspace." = "Checked items are on this workspace's Dock, in this order. Add groups, apps and widgets in Settings › Dock; each one exists once, so editing it changes it in every workspace.";
 "This list is the active workspace's Dock. Items only other workspaces have are listed at the end." = "This list is the active workspace's Dock. Items only other workspaces have are listed at the end.";
+
+/* App menus */
+"Show the app's own items on right-click" = "Show the app's own items on right-click";
+"New Window, the window list and the rest of an app's Dock menu, read from the macOS Dock. Needs Accessibility access; the menu takes a moment longer to open." = "New Window, the window list and the rest of an app's Dock menu, read from the macOS Dock. Needs Accessibility access; the menu takes a moment longer to open.";
+"App menus" = "App menus";

@@ -632,6 +632,9 @@ struct BehaviorConfig: Codable, Equatable, Sendable {
     var language: AppLanguage = .system
     /// App badges ("3", "•") read from the native Dock through Accessibility.
     var showsNotificationBadges: Bool = true
+    /// Right-clicking an app adds the items of its own Dock menu, read from
+    /// the native Dock through Accessibility.
+    var showsAppDockMenu: Bool = true
 }
 
 struct TelemetryConfig: Codable, Equatable, Sendable {
@@ -890,6 +893,7 @@ extension BehaviorConfig {
         screenSpaceExclusions = try c.decode(.screenSpaceExclusions, or: d.screenSpaceExclusions)
         language = try c.decode(.language, or: d.language)
         showsNotificationBadges = try c.decode(.showsNotificationBadges, or: d.showsNotificationBadges)
+        showsAppDockMenu = try c.decode(.showsAppDockMenu, or: d.showsAppDockMenu)
     }
 }
 
