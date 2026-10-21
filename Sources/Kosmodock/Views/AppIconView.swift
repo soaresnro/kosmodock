@@ -272,13 +272,14 @@ extension BarItem {
 struct PinnedAppView: View {
     @Environment(AppModel.self) private var model
     let app: DockApp
+    var density: DockDensity = .regular
     @ViewState private var isHovering = false
     @ViewState private var isPulsing = false
 
     var body: some View {
         let theme = model.theme
-        let unit = TileView.unit(iconSize: theme.iconSize)
-        let size = unit - 9
+        // As tall as a capsule; the running indicator sits in the bar's padding below.
+        let size = density.capsuleHeight(iconSize: theme.iconSize)
         let itemID = DockConfig.itemID(forPinned: app)
         let minimized = model.minimizedWindows.count(in: itemID)
         let hoverScale: CGFloat = switch theme.hoverEffect {
@@ -297,7 +298,7 @@ struct PinnedAppView: View {
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .frame(height: unit)
+                .frame(height: size)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

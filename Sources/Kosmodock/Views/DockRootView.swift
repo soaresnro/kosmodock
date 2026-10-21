@@ -100,6 +100,16 @@ enum DockDensity: Int, CaseIterable, Sendable {
         case .minimal: 2
         }
     }
+
+    /// A collapsed capsule's height: its minimum, or in compact the mini
+    /// icons stacked over the badge line, plus the vertical padding. Pinned
+    /// app icons take it, so they're as tall as the capsules beside them.
+    func capsuleHeight(iconSize: Double) -> CGFloat {
+        let minimum = CGFloat(iconSize) * 0.62 + 18
+        guard self == .compact else { return minimum }
+        // Mini icons (half the icon size), 5 pt spacing, a 10 pt badge line.
+        return max(minimum, (CGFloat(iconSize) * 0.5 + 5 + 12.5 + 12).rounded())
+    }
 }
 
 /// The dock: one glass strip holding every group capsule.
@@ -183,7 +193,7 @@ struct DockBar: View {
                     case .group(let group):
                         GroupCapsuleView(group: group, density: density, variant: squareTiles ? 1 : 0, namespace: namespace)
                     case .app(let app):
-                        PinnedAppView(app: app)
+                        PinnedAppView(app: app, density: density)
                     case .tile(let tile):
                         TileView(tile: tile, isSquare: squareTiles || density == .minimal)
                     }
