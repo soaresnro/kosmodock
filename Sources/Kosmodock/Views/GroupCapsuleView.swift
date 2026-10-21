@@ -54,7 +54,7 @@ struct GroupCapsuleView: View {
         .onHover { hovering in
             withAnimation(.easeOut(duration: 0.15)) { isHovering = hovering }
         }
-        .scaleEffect(isHovering && !isExpanded ? 1.025 : 1, anchor: .bottom)
+        .scaleEffect(isHovering && !isExpanded && theme.hoverEffect != .none ? 1.025 : 1, anchor: .bottom)
         .scaleEffect(isPulsing ? 1.12 : 1, anchor: .bottom)
         .onChange(of: model.pulseTokens[group.id] ?? 0) { _, _ in pulse() }
         .contextMenu { GroupContextMenu(group: group) }
@@ -130,8 +130,13 @@ struct GroupCapsuleView: View {
 
     private func collapsedApps(iconSize: CGFloat) -> some View {
         HStack(spacing: 3) {
-            ForEach(Array(group.apps.prefix(miniIconLimit))) { app in
-                AppIconView(app: app, size: iconSize)
+            // Grow in place only: spreading would widen the capsule, and with
+            // it every capsule (`CapsuleRow`).
+            MagnifyingRow(
+                items: Array(group.apps.prefix(miniIconLimit)), size: iconSize, spacing: 3,
+                maxScale: model.theme.hoverEffect == .magnify ? 1.3 : nil, spreads: false
+            ) { app in
+                AppIconView(app: app, size: iconSize, tint: model.tint(for: group))
                     .matchedGeometryEffect(id: iconID(app), in: namespace)
             }
             if group.apps.count > miniIconLimit {
@@ -145,7 +150,11 @@ struct GroupCapsuleView: View {
 
     private func expandedApps(iconSize: CGFloat, tint: Color) -> some View {
         HStack(spacing: 6) {
-            ForEach(group.apps) { app in
+            // The expanded capsule keeps its own width, so its row can spread.
+            MagnifyingRow(
+                items: group.apps, size: iconSize, spacing: 6,
+                maxScale: model.theme.hoverEffect == .magnify ? 1.5 : nil
+            ) { app in
                 AppIconButton(app: app, group: group, size: iconSize)
                     .matchedGeometryEffect(id: iconID(app), in: namespace)
             }

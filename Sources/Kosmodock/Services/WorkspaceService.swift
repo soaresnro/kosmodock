@@ -14,6 +14,8 @@ struct AppRuntimeState: Equatable, Sendable {
 final class WorkspaceService {
     /// Running state keyed by bundle identifier.
     private(set) var states: [String: AppRuntimeState] = [:]
+    /// Bundle ids of apps launched from the dock that are still launching.
+    private(set) var launching: Set<String> = []
 
     @ObservationIgnored private var iconCache: [String: NSImage] = [:]
     @ObservationIgnored private var displayNameCache: [String: String] = [:]
@@ -125,12 +127,36 @@ final class WorkspaceService {
         }
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = activate
+        let launchingID = isRunning(app) ? nil : bundleID(for: app)
+        if let launchingID { launching.insert(launchingID) }
         do {
-            return try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+            let running = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+            if let launchingID {
+                // Not awaited: callers launching several apps shouldn't wait for each to finish.
+                Task { await self.endLaunching(launchingID, when: running) }
+            }
+            return running
         } catch {
+            if let launchingID { launching.remove(launchingID) }
             NSLog("Kosmodock: failed to open \(app.name): \(error.localizedDescription)")
             return nil
         }
+    }
+
+    func isLaunching(_ app: DockApp) -> Bool {
+        bundleID(for: app).map(launching.contains) ?? false
+    }
+
+    /// The icon animates until the app finishes launching (`openApplication`
+    /// returns earlier), for at least a moment and at most ten seconds.
+    private func endLaunching(_ id: String, when running: NSRunningApplication) async {
+        let start = ContinuousClock.now
+        while !running.isFinishedLaunching, !running.isTerminated, ContinuousClock.now - start < .seconds(10) {
+            try? await Task.sleep(for: .milliseconds(150))
+        }
+        let shown = ContinuousClock.now - start
+        if shown < .milliseconds(700) { try? await Task.sleep(for: .milliseconds(700) - shown) }
+        launching.remove(id)
     }
 
     /// Unhides and brings an app to the front. LaunchServices activation is
