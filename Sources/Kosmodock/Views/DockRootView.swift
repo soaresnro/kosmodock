@@ -173,34 +173,31 @@ struct DockBar: View {
 
     private var content: some View {
         CapsuleRow(spacing: density == .minimal ? 4 : 6, maxWidth: maxWidth - Self.padding * 2) {
-            ForEach(model.config.groups) { group in
-                GroupCapsuleView(group: group, density: density, variant: squareTiles ? 1 : 0, namespace: namespace)
-                    .background {
-                        GeometryReader { proxy in
-                            Color.clear.preference(
-                                key: CapsuleFramesKey.self,
-                                value: [group.id: proxy.frame(in: .named(DockSpace.name))]
-                            )
-                        }
+            let items = model.barItems
+            ForEach(items) { item in
+                Group {
+                    switch item {
+                    case .group(let group):
+                        GroupCapsuleView(group: group, density: density, variant: squareTiles ? 1 : 0, namespace: namespace)
+                    case .app(let app):
+                        PinnedAppView(app: app)
+                    case .tile(let tile):
+                        TileView(tile: tile, isSquare: squareTiles || density == .minimal)
                     }
-                    .layoutValue(key: EqualizesWidthKey.self, value: model.expandedGroupID != group.id)
-            }
-            if model.config.groups.isEmpty, model.config.tiles.isEmpty {
-                EmptyDockHint()
-            }
-            if !model.config.tiles.isEmpty {
-                if !model.config.groups.isEmpty { TileDivider() }
-                ForEach(model.config.tiles) { tile in
-                    TileView(tile: tile, isSquare: squareTiles || density == .minimal)
-                        .background {
-                            GeometryReader { proxy in
-                                Color.clear.preference(
-                                    key: CapsuleFramesKey.self,
-                                    value: [AppModel.itemID(for: tile): proxy.frame(in: .named(DockSpace.name))]
-                                )
-                            }
-                        }
                 }
+                // Popovers and the minimize animation find items by these frames.
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: CapsuleFramesKey.self,
+                            value: [item.id: proxy.frame(in: .named(DockSpace.name))]
+                        )
+                    }
+                }
+                .layoutValue(key: EqualizesWidthKey.self, value: item.equalizesWidth(expandedGroupID: model.expandedGroupID))
+            }
+            if items.isEmpty {
+                EmptyDockHint()
             }
             DockUtilityButton()
         }

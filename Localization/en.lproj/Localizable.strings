@@ -20,6 +20,7 @@
 "Accessibility access required" = "Accessibility access required";
 "Add" = "Add";
 "Add a group in Settings" = "Add a group in Settings";
+"Add App" = "Add App";
 "Add Application…" = "Add Application…";
 "Add Command Check" = "Add Command Check";
 "Add group" = "Add group";
@@ -29,6 +30,7 @@
 "Almost white, with a quiet border and short corners." = "Almost white, with a quiet border and short corners.";
 "Already switched on but still “required”? That entry belongs to an older build. In System Settings select Kosmodock, remove it with −, then click Request Access and switch the new entry on." = "Already switched on but still “required”? That entry belongs to an older build. In System Settings select Kosmodock, remove it with −, then click Request Access and switch the new entry on.";
 "API" = "API";
+"App" = "App";
 "Appearance" = "Appearance";
 "Apply Layout Now" = "Apply Layout Now";
 "Apps" = "Apps";
@@ -50,6 +52,9 @@
 "Charging" = "Charging";
 "Checking…" = "Checking…";
 "Choose apps to add to %@" = "Choose apps to add to %@";
+"Choose apps to put on the Dock on their own" = "Choose apps to put on the Dock on their own";
+"Choose App…" = "Choose App…";
+"Click a widget on the Dock to see its details. Arrange it among groups and apps in Settings › Dock." = "Click a widget on the Dock to see its details. Arrange it among groups and apps in Settings › Dock.";
 "Click opens" = "Click opens";
 "Clicking a group opens" = "Clicking a group opens";
 "Clicking the frontmost app's icon minimizes its window" = "Clicking the frontmost app's icon minimizes its window";
@@ -98,6 +103,7 @@
 "Dot" = "Dot";
 "Download" = "Download";
 "Drag to reorder" = "Drag to reorder";
+"Drag to reorder. Groups, apps and widgets go in any order, as on the Dock from left to right." = "Drag to reorder. Groups, apps and widgets go in any order, as on the Dock from left to right.";
 "Edit Group…" = "Edit Group…";
 "Edit Widgets…" = "Edit Widgets…";
 "Effects" = "Effects";
@@ -128,6 +134,8 @@
 "Grid 2 × 2" = "Grid 2 × 2";
 "Group" = "Group";
 "Group color" = "Group color";
+"Group · %lld apps" = "Group · %lld apps";
+"Group · 1 app" = "Group · 1 app";
 "Groups are rebuilt by scanning /Applications. Your current groups and theme are overwritten." = "Groups are rebuilt by scanning /Applications. Your current groups and theme are overwritten.";
 "Health Checks" = "Health Checks";
 "Health Probes" = "Health Probes";
@@ -346,8 +354,8 @@
 "Wi-Fi, Ethernet and Thunderbolt only. VPN tunnels and virtual machine interfaces are left out, so the same traffic isn't counted twice." = "Wi-Fi, Ethernet and Thunderbolt only. VPN tunnels and virtual machine interfaces are left out, so the same traffic isn't counted twice.";
 "Wide" = "Wide";
 "Widget" = "Widget";
+"Widget · %@" = "Widget · %@";
 "Widgets" = "Widgets";
-"Widgets sit on the Dock after the groups. Click one to see its details." = "Widgets sit on the Dock after the groups. Click one to see its details.";
 "Window clearance above dock" = "Window clearance above dock";
 "Window Tiling" = "Window Tiling";
 "Window tiling needs Accessibility access" = "Window tiling needs Accessibility access";

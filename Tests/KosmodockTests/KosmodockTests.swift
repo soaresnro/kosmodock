@@ -770,7 +770,7 @@ final class TileTests: XCTestCase {
 
     func testTileItemIDsNeverMatchAGroup() {
         let tile = DockTile(id: "clock", kind: .clock)
-        XCTAssertEqual(AppModel.itemID(for: tile), "tile:clock")
+        XCTAssertEqual(DockConfig.itemID(for: tile), "tile:clock")
         XCTAssertFalse(DockConfig.slug("tile:clock").contains(":"), "group ids are slugs")
         XCTAssertEqual(TelemetryService.commandKey(tile: tile), "tile:clock")
     }
@@ -813,5 +813,79 @@ final class TileTests: XCTestCase {
     func testNetworkCountersReadThisMac() throws {
         let totals = try XCTUnwrap(NetworkCounters.totals())
         XCTAssertGreaterThan(totals.received + totals.sent, 0, "a Mac running the tests has used its network")
+    }
+}
+
+/// Groups, pinned apps and tiles share one bar order.
+final class BarOrderTests: XCTestCase {
+    private func config(order: [String] = []) -> DockConfig {
+        var config = DockConfig()
+        config.groups = [DockGroup(id: "code", name: "Code"), DockGroup(id: "web", name: "Web"), DockGroup(id: "ai", name: "AI")]
+        config.pinnedApps = [DockApp(name: "Finder", bundleId: "com.apple.finder")]
+        config.tiles = [DockTile(id: "clock", kind: .clock)]
+        config.order = order
+        return config
+    }
+
+    func testWithoutAnOrderAppsComeFirstAndTilesLast() {
+        XCTAssertEqual(config().barOrder, ["app:com.apple.finder", "code", "web", "ai", "tile:clock"])
+    }
+
+    func testTheOrderWinsAndMissingItemsFollowIt() {
+        let ordered = config(order: ["tile:clock", "web", "gone", "web", "app:com.apple.finder"])
+        XCTAssertEqual(ordered.barOrder, ["tile:clock", "web", "app:com.apple.finder", "code", "ai"])
+    }
+
+    func testAnAddedItemGoesToTheEnd() {
+        var config = config()
+        config.settleOrder()
+        config.groups.append(DockGroup(id: "new", name: "New"))
+        XCTAssertEqual(config.barOrder.last, "new")
+        XCTAssertEqual(config.barOrder.first, "app:com.apple.finder", "settling keeps the default order")
+    }
+
+    func testMovingItems() {
+        var config = config()
+        config.moveBarItems(fromOffsets: IndexSet(integer: 4), toOffset: 0)
+        XCTAssertEqual(config.barOrder, ["tile:clock", "app:com.apple.finder", "code", "web", "ai"])
+        config.moveBarItem("code", by: 1)
+        XCTAssertEqual(config.barOrder, ["tile:clock", "app:com.apple.finder", "web", "code", "ai"])
+        config.moveBarItem("tile:clock", by: -1)
+        XCTAssertEqual(config.barOrder.first, "tile:clock", "the first item can't go further")
+    }
+
+    func testMovingGroupsLeavesAppsAndTilesInPlace() {
+        var config = config(order: ["code", "app:com.apple.finder", "web", "tile:clock", "ai"])
+        // The sidebar lists the groups only: code, web, ai. Move ai to the top.
+        config.moveGroups(fromOffsets: IndexSet(integer: 2), toOffset: 0)
+        XCTAssertEqual(config.barOrder, ["ai", "app:com.apple.finder", "code", "tile:clock", "web"])
+        XCTAssertEqual(config.groups.map(\.id), ["ai", "code", "web"], "the groups array follows the bar")
+    }
+
+    func testMovedMatchesSwiftUIsMove() {
+        let items = ["a", "b", "c", "d", "e"]
+        for (source, destination) in [(IndexSet(integer: 0), 3), (IndexSet(integer: 4), 0), (IndexSet([1, 3]), 5), (IndexSet([0, 2]), 2)] {
+            var expected = items
+            expected.move(fromOffsets: source, toOffset: destination)
+            XCTAssertEqual(items.moved(fromOffsets: source, toOffset: destination), expected, "\(Array(source)) → \(destination)")
+        }
+    }
+
+    func testMinimizedWindowsGoToTheGroupThenThePinnedIcon() {
+        let groups = [(id: "code", name: "Code", bundleIDs: Set(["com.googlecode.iterm2"])), (id: "system", name: "System", bundleIDs: Set<String>())]
+        let pinned = ["com.apple.finder": "app:com.apple.finder", "com.googlecode.iterm2": "app:com.googlecode.iterm2"]
+        XCTAssertEqual(GroupResolver.groupID(for: "com.googlecode.iterm2", groups: groups, pinned: pinned), "code")
+        XCTAssertEqual(GroupResolver.groupID(for: "com.apple.finder", groups: groups, pinned: pinned), "app:com.apple.finder")
+        XCTAssertEqual(GroupResolver.groupID(for: "com.other.app", groups: groups, pinned: pinned), "system")
+    }
+
+    func testPinnedAppsDecodeWithoutRepeats() throws {
+        let json = #"{ "pinnedApps": [ { "bundleId": "com.apple.finder" }, { "name": "Finder", "bundleId": "com.apple.finder" } ], "order": ["app:com.apple.finder"] }"#
+        let decoded = try JSONDecoder().decode(DockConfig.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.pinnedApps.count, 1)
+        XCTAssertEqual(decoded.order, ["app:com.apple.finder"])
+        let old = try JSONDecoder().decode(DockConfig.self, from: Data(#"{ "groups": [] }"#.utf8))
+        XCTAssertEqual(old.pinnedApps, [])
+        XCTAssertEqual(old.order, [])
     }
 }
