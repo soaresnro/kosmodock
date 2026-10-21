@@ -1234,7 +1234,7 @@ private struct PermissionsSettingsView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(trusted ? L10n.tr("Accessibility access granted") : L10n.tr("Accessibility access required"))
                             .font(.headline)
-                        Text("Used only to move and resize windows for tiling, and to raise a group's windows together.")
+                        Text("Moves, resizes, minimizes and raises windows for tiling, the reserved space and minimizing into groups, and reads the macOS Dock's notification badges and app menus.")
                             .foregroundStyle(.secondary)
                     }
                 }

@@ -60,6 +60,7 @@ Git workflow:
 - Every model has a lenient `init(from:)` in an extension: missing keys fall back to defaults, wrong types or unknown enum values throw. **A new field needs a line in that extension**, or old configs stop decoding.
 - In-app edits go through `ConfigService.update` (debounced save) or `AppModel.binding(\.keyPath)` / `groupBinding(id:)`. Bindings look groups up by id, never by array index.
 - `FileWatcher` hot-reloads external edits and survives atomic saves. Self-writes are ignored by comparing bytes.
+- Backups: `ConfigBackupStore` (`Services/ConfigBackups.swift`) is pure file logic with an injectable directory; `ConfigService` uses `backups/` next to its `fileURL`, at launch and in `AppModel.stop()`. `backUp()` flushes a pending save first; `restore(_:)` decodes first, then backs up, then `saveNow()`, so the watcher ignores the write.
 - Services react through `configService.addObserver`.
 
 **Windowing.**
@@ -75,11 +76,19 @@ Git workflow:
 - Configs without a `style` key predate styles: their `cornerRadius`, `glassOpacity`, `borderOpacity` and `material` migrate into the glass surface.
 - `DockSurface` writes unset fill colors as `null`, because a missing key falls back to the style's colors.
 - `--render-snapshots` also writes `dock-style-<id>.png` for every style.
+- `ThemeConfig.customizations` keeps the edited surfaces of the styles that aren't selected, by style name: `apply(_:)` stores the current one and loads the next; `restore()` drops only the current style's. `DockSurface.fillAngle` rotates the fill clockwise from top-to-bottom. `DockSurface.reflection` (on for Graphite and Floating) draws a mirrored copy under icons as a background outside their frame, so layout never changes; only dock call sites pass `AppIconView(reflects: true)`.
 
 **Effects.** `ThemeConfig` holds `hoverEffect`, `launchAnimation`, `indicatorStyle` and `indicatorColor`.
 - Magnification (`Magnifier`, `MagnifyingRow`) only scales and offsets, so it never changes layout. With `spreads`, a row moves neighbors apart and keeps permanent padding for it.
 - Only the expanded accordion row spreads. Collapsed capsules' mini icons grow in place, because a wider capsule would widen every capsule (`CapsuleRow`).
 - `WorkspaceService.launching` holds apps launched from the dock until `isFinishedLaunching`, shown for at least 0.7 s and at most 10 s. `AppIconView` animates them with `LaunchMotion` and draws `RunningIndicator` outside it, so the mark stays put.
+
+**Workspaces** (`Models/Workspaces.swift`, `App/AppModel+Workspaces.swift`).
+- `DockConfig.workspaces` lists item ids per bar and `activeWorkspaceID` picks one (an unknown id means the first). With no workspaces the bar is unchanged.
+- `barOrder` shows only the active workspace's items; `activeOrder` is what `settleOrder` and the moves read and write. Add through `addToBar` (new items join the active workspace only), delete through `removeFromBar` (every workspace). `allItemIDs` is the single-bar order; `sidebarGroupIDs` lists groups in bar order, then hidden ones.
+- `WorkspaceSwitch.plan` is pure, over bundle ids. The new workspace's `otherApps` (keep/hide/quit, never forced, never the Finder or Kosmodock) applies to running apps of the old workspace's groups and pinned apps that the new one lacks. `WorkspaceSwitcher.hiddenApps` (in memory) unhides them when a workspace that has them returns. `groupID(forBundleID:)` prefers items on the bar, and a switch runs `regroup()`.
+- Triggers, only with 2 or more workspaces: ⌃⌥1…9 via Carbon `RegisterEventHotKey` (`HotKeyCenter`, no permission); `WorkspaceDots` at the bar's leading edge (a non-equalized `CapsuleRow` item); `WorkspaceSwipeMonitor`, a local `.scrollWheel` monitor on the dock panel (horizontal swipe or ⌘ + scroll, one step per gesture; on the scrolling bar only ⌘ + scroll); the status menu.
+- The default names "Main" and "New Workspace" are config texts. Binding workspaces to Spaces (private CGS APIs) or Focus modes (App Intents, which `swift build` can't produce) is not done.
 
 **Bar order.** The bar holds group capsules, pinned apps (`DockConfig.pinnedApps`, plain icons via `PinnedAppView`) and tiles in one order.
 - Item ids: a group's id, `app:<DockApp.id>` and `tile:<id>` (`DockConfig.itemID(forPinned:)`, `itemID(for:)`). Group ids are slugs, so they never contain a colon.
@@ -102,7 +111,10 @@ Git workflow:
   - `NowPlayingService` asks Music/Spotify through `osascript` only while the app is running (`tell application` would launch it). Error -1743 means Automation was denied.
   - `CalendarService` checks `Bundle.main.infoDictionary` for the usage key before asking: asking without it crashes the app, and `object(forInfoDictionaryKey:)` would also find the key in `InfoPlist.strings`.
   - `GitHubService` runs `gh search prs` every two minutes; exit 4 means signed out, 127 not installed.
-- `bundle.sh` writes the Automation and Calendars usage descriptions into Info.plist; `Localization/*.lproj/InfoPlist.strings` translates them.
+  - `CodexUsageService`/`CodexSessionReader` (`AppWidgetServices+More.swift`) read `~/.codex/sessions` incrementally. Each `event_msg`/`token_count` line has the turn's `last_token_usage` and the session's `total_token_usage`; Codex repeats the event without new usage, so a line whose total equals the previous one counts nothing, and turns are keyed by time and counts so copied sessions count once. `rate_limits.primary`/`secondary` are classified by `window_minutes` (a plan may have only the weekly window, as `primary`).
+  - `RemindersService` has the same raw-Info.plist guard as Calendar (`NSRemindersFullAccessUsageDescription`); `fetchReminders` calls back on EventKit's queue, so items are copied there.
+  - `NowPlayingService` fetches Music's artwork once per track: osascript prints `«data PNGf…»`, a 4-character type code plus hex, parsed off the main thread and thumbnailed with ImageIO.
+- `bundle.sh` writes the Automation, Calendars and Reminders usage descriptions into Info.plist; `Localization/*.lproj/InfoPlist.strings` translates them.
 - A command that prints a JSON object draws its widget (`CommandOutput`: text, detail, symbol, color, progress, status, url).
 
 **Coordinates.** AppKit rects are bottom-left origin; the Accessibility/Quartz API and `CGWindowList` are top-left origin of the primary display. `TilingEngine.accessibilityRect(fromCocoa:primaryScreenHeight:)` converts in both directions. `TilingEngine` is pure layout math in top-left space, which is why its tests read top-down.
@@ -111,6 +123,8 @@ Git workflow:
 - `AXObserverHub` keeps one `AXObserver` per regular app, registered on the application element, and merges NSWorkspace events into `WindowEvent`s. Listeners are `BottomMarginEnforcer`, `MinimizedWindowTracker` and `IntellihideController`.
 - All blocking AX calls run on `WindowManagerService`'s serial queue (`performAX`). `AXWindowOps` is the synchronous AX layer and must never run on the main thread.
 - `SafeWorkArea` (built by `DockController.safeWorkArea()`) is the contract between the dock and everything that places windows. The reserved line is the dock's *resting* bar height + `theme.dockClearance`. It ignores accordion expansion on purpose, so expanding a group doesn't resize every window.
+- `DockBadgeService` polls the native Dock's AX tree every 2 s through `performAX` (Dock → `AXList` → `AXDockItem`). `AXStatusLabel`/`AXURL` count only on `AXApplicationDockItem`: on the Handoff item `AXStatusLabel` is a device id. It re-resolves the Dock's pid after `killall Dock` and tolerates 3 failed polls. `AppIconView(badgeStyle:)` takes `.full`/`.dot`/`.hidden`; lists and Settings pass `.hidden`. Notification badges sit top-trailing, the minimized counter bottom-trailing.
+- The app's own Dock menu (`DockMenuService`) can only be read by opening it: `DockMenuAX` performs `AXShowMenu` on the native Dock item, reads `AXShownMenuUIElement`, then `AXCancel` (about 100 ms). A chosen item is pressed by reopening the menu and checking the title at the same index. `DockMenuFilter` drops the Dock's closing block and its Options submenu. SwiftUI's `.contextMenu` can't wait for that, so `.appMenu(_:group:)` puts an AppKit view over the icon that takes right and Control clicks only and pops up an NSMenu.
 - `BottomMarginEnforcer`:
   - waits while any mouse button is down;
   - remembers windows that refuse a frame (`EnforcementMemory`) to avoid resize loops;
