@@ -688,6 +688,7 @@ private struct TileEditorSection: View {
             switch current.kind {
             case .clock:
                 Toggle("Show seconds", isOn: tile.showsSeconds)
+                ClockSettingsRows(tile: tile)
             case .command:
                 TextField("Label", text: optionalText(\.label))
                 TextField("Command", text: optionalText(\.command), prompt: Text(verbatim: "uptime"))
@@ -720,6 +721,17 @@ private struct TileEditorSection: View {
                     .foregroundStyle(.secondary)
             case .reminders:
                 RemindersAccessRow()
+            // Time widgets
+            case .timer:
+                TimerSettingsRows(tile: tile)
+            case .pomodoro:
+                PomodoroSettingsRows(tile: tile)
+            case .countdown:
+                CountdownSettingsRows(tile: tile)
+            case .stopwatch:
+                StopwatchSettingsRows()
+            case .timeProgress:
+                TimeProgressSettingsRows(tile: tile)
             case .battery, .activity, .network:
                 EmptyView()
             }

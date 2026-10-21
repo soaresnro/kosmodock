@@ -340,6 +340,12 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case github
     case codex
     case reminders
+    // Time widgets
+    case timer
+    case pomodoro
+    case countdown
+    case stopwatch
+    case timeProgress
     case command
 
     var id: String { rawValue }
@@ -356,6 +362,12 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .github: "GitHub"
         case .codex: "Codex"
         case .reminders: L10n.tr("Reminders")
+        // Time widgets
+        case .timer: L10n.tr("Timer")
+        case .pomodoro: L10n.tr("Pomodoro")
+        case .countdown: L10n.tr("Countdown")
+        case .stopwatch: L10n.tr("Stopwatch")
+        case .timeProgress: L10n.tr("Time Progress")
         case .command: L10n.tr("Command")
         }
     }
@@ -372,6 +384,12 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .github: "arrow.triangle.pull"
         case .codex: "curlybraces"
         case .reminders: "checklist"
+        // Time widgets
+        case .timer: "timer"
+        case .pomodoro: "brain.head.profile"
+        case .countdown: "hourglass"
+        case .stopwatch: "stopwatch"
+        case .timeProgress: "calendar.day.timeline.left"
         case .command: "terminal"
         }
     }
@@ -379,6 +397,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
     enum Category: CaseIterable {
         /// The Mac's own readings.
         case system
+        /// Clocks, timers and counters.
+        case time
         /// Data from other apps.
         case apps
         /// Your own, from a script.
@@ -387,6 +407,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         var title: String {
             switch self {
             case .system: L10n.tr("System")
+            case .time: L10n.tr("Time")
             case .apps: L10n.tr("Apps")
             case .custom: L10n.tr("Custom")
             }
@@ -395,7 +416,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var category: Category {
         switch self {
-        case .clock, .battery, .activity, .network: .system
+        case .battery, .activity, .network: .system
+        case .clock, .timer, .pomodoro, .countdown, .stopwatch, .timeProgress: .time
         case .claudeCode, .nowPlaying, .calendar, .github, .codex, .reminders: .apps
         case .command: .custom
         }
@@ -431,6 +453,17 @@ struct DockTile: Codable, Equatable, Identifiable, Sendable {
     var label: String?
     /// Command: seconds between runs; `telemetry.pollInterval` when unset.
     var interval: Double?
+    // Time widgets (`TimeWidgets.swift`); unset options use their defaults.
+    /// Clock: a `TimeZone` identifier ("Asia/Tokyo"); this Mac's when unset.
+    var timeZone: String?
+    /// Clock: the square tile's face.
+    var face: ClockFace?
+    var timer: TimerOptions?
+    var pomodoro: PomodoroOptions?
+    /// Countdown: its date; `label` names it.
+    var countdown: CountdownOptions?
+    /// Time progress: day, week, month or year.
+    var period: TimePeriod?
 }
 
 /// Interface language. `system` follows macOS (English when unsupported).
@@ -930,6 +963,13 @@ extension DockTile {
         command = try c.decodeIfPresent(String.self, forKey: .command)
         label = try c.decodeIfPresent(String.self, forKey: .label)
         interval = try c.decodeIfPresent(Double.self, forKey: .interval)
+        // Time widgets
+        timeZone = try c.decodeIfPresent(String.self, forKey: .timeZone)
+        face = try c.decodeIfPresent(ClockFace.self, forKey: .face)
+        timer = try c.decodeIfPresent(TimerOptions.self, forKey: .timer)
+        pomodoro = try c.decodeIfPresent(PomodoroOptions.self, forKey: .pomodoro)
+        countdown = try c.decodeIfPresent(CountdownOptions.self, forKey: .countdown)
+        period = try c.decodeIfPresent(TimePeriod.self, forKey: .period)
     }
 }
 

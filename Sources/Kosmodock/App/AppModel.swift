@@ -48,6 +48,8 @@ final class AppModel {
     let github = GitHubService()
     let codex = CodexUsageService()
     let reminders = RemindersService()
+    /// Timers, pomodoros and stopwatches, saved next to config.json.
+    let timeWidgets: TimeWidgetService
     let windows: WindowManagerService
     let systemDock: SystemDockManager
     let axHub: AXObserverHub
@@ -85,6 +87,7 @@ final class AppModel {
         self.workspace = workspace
         telemetry = TelemetryService(configService: configService, workspace: workspace)
         containers = ContainerMonitorService(configService: configService)
+        timeWidgets = TimeWidgetService(directory: configService.fileURL.deletingLastPathComponent())
         let windows = WindowManagerService()
         self.windows = windows
         systemDock = SystemDockManager()
@@ -98,6 +101,7 @@ final class AppModel {
         L10n.setLanguage(configService.config.behavior.language)
         configService.addObserver { [weak self] old, new in self?.configDidChange(from: old, to: new) }
         wireWindowServices()
+        timeWidgets.onOpenTile = { [weak self] id in self?.showTimeWidget(id: id) }
     }
 
     func start() {
@@ -123,6 +127,7 @@ final class AppModel {
         for service in [claude.setEnabled, nowPlaying.setEnabled, calendar.setEnabled, github.setEnabled, codex.setEnabled, reminders.setEnabled] as [(Bool) -> Void] {
             service(false)
         }
+        timeWidgets.stop()
         axHub.stop()
         dockBadges.setActive(false)
         stopDockItems()
@@ -640,6 +645,7 @@ final class AppModel {
             tile.command = "uptime | sed 's/.*up \\([^,]*\\),.*/\\1/'"
             tile.interval = 60
         }
+        tile.applyTimeDefaults()
         editBar { config in
             config.addToBar { $0.tiles = DockConfig.normalizedTileIDs($0.tiles + [tile]) }
         }
@@ -668,6 +674,7 @@ final class AppModel {
         github.setEnabled(kinds.contains(.github))
         codex.setEnabled(kinds.contains(.codex))
         reminders.setEnabled(kinds.contains(.reminders))
+        timeWidgets.setTiles(config.tiles)
     }
 
     private func configDidChange(from old: DockConfig, to new: DockConfig) {
