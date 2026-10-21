@@ -294,6 +294,44 @@ final class ScreenSpaceTests: XCTestCase {
         XCTAssertNil(ScreenSpaceMath.adjustedFrame(for: window, workArea: work, screen: screen, canResize: true))
     }
 
+    func testWindowDraggedWellPastTheEdgeStaysBehindTheDock() {
+        let before = CGRect(x: 200, y: 300, width: 600, height: 400)
+        let dropped = CGRect(x: 260, y: 420, width: 600, height: 400)
+        XCTAssertTrue(ScreenSpaceMath.staysBehindDock(dropped, draggedFrom: before, workArea: work, screen: screen))
+    }
+
+    func testWindowNudgedIntoTheBandIsCaughtAtTheEdge() {
+        let before = CGRect(x: 200, y: 300, width: 600, height: 400)
+        let dropped = CGRect(x: 200, y: 380 + ScreenSpaceMath.edgeCatchDistance, width: 600, height: 400)
+        XCTAssertFalse(ScreenSpaceMath.staysBehindDock(dropped, draggedFrom: before, workArea: work, screen: screen))
+        XCTAssertEqual(
+            ScreenSpaceMath.adjustedFrame(for: dropped, workArea: work, screen: screen, canResize: true),
+            CGRect(x: 200, y: 380, width: 600, height: 400)
+        )
+    }
+
+    func testResizesAndTilesStillStopAtTheEdge() {
+        // A macOS tile to the left half fills to the screen's bottom.
+        let fitted = CGRect(x: 0, y: 29, width: 1352, height: 751)
+        let tiled = CGRect(x: 0, y: 29, width: 676, height: 849)
+        XCTAssertFalse(ScreenSpaceMath.staysBehindDock(tiled, draggedFrom: fitted, workArea: work, screen: screen))
+        // Dragging the bottom edge down.
+        let resized = CGRect(x: 0, y: 29, width: 1352, height: 840)
+        XCTAssertFalse(ScreenSpaceMath.staysBehindDock(resized, draggedFrom: fitted, workArea: work, screen: screen))
+    }
+
+    func testLeftBehindWindowIsCheckedAgainOnceItMoves() {
+        let memory = EnforcementMemory()
+        let ref = AXElementRef(AXUIElementCreateApplication(getpid()))
+        let frame = CGRect(x: 200, y: 450, width: 600, height: 400)
+        XCTAssertNil(memory.see(ref, at: frame))
+        XCTAssertEqual(memory.see(ref, at: frame.offsetBy(dx: 0, dy: 10)), frame)
+        memory.leaveBehind(ref, at: frame)
+        memory.reset()
+        XCTAssertTrue(memory.isLeftBehind(ref, at: frame), "a new reserved line doesn't undo the user's choice")
+        XCTAssertFalse(memory.isLeftBehind(ref, at: frame.offsetBy(dx: 0, dy: 5)))
+    }
+
     func testSafeWorkAreaReservedHeightAndFlip() {
         let area = SafeWorkArea(
             screenFrame: CGRect(x: 0, y: 0, width: 1352, height: 878),

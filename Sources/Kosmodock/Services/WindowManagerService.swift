@@ -192,9 +192,7 @@ enum ScreenSpaceMath {
     /// pinned to the top of the work area and shrunk to end at the reserved
     /// line. Fixed-size windows are only moved.
     static func adjustedFrame(for window: CGRect, workArea: CGRect, screen: CGRect, canResize: Bool) -> CGRect? {
-        // The title bar decides which display a window belongs to.
-        let titleBar = CGPoint(x: window.midX, y: window.minY + min(window.height, 30) / 2)
-        guard screen.contains(titleBar) else { return nil }
+        guard isOnScreen(window, screen) else { return nil }
         let limit = workArea.maxY
         guard window.maxY > limit + 0.5 else { return nil }
 
@@ -216,12 +214,32 @@ enum ScreenSpaceMath {
     /// fitted to the native Dock follow it when it shrinks.
     static func grownFrame(for window: CGRect, previousLimit: CGFloat, workArea: CGRect, screen: CGRect, canResize: Bool) -> CGRect? {
         let limit = workArea.maxY
-        guard canResize, previousLimit < limit - 0.5, abs(window.maxY - previousLimit) <= 1.5 else { return nil }
-        let titleBar = CGPoint(x: window.midX, y: window.minY + min(window.height, 30) / 2)
-        guard screen.contains(titleBar) else { return nil }
+        guard canResize, previousLimit < limit - 0.5, abs(window.maxY - previousLimit) <= 1.5, isOnScreen(window, screen) else { return nil }
         var frame = window
         frame.size.height += limit - window.maxY
         return frame
+    }
+
+    /// How far into the dock's band a dragged window may end and still be
+    /// caught at the edge.
+    static let edgeCatchDistance: CGFloat = 24
+
+    /// Whether a window the user just dragged from `previous` stays where it
+    /// was dropped, behind the dock, the way the native Dock lets it. A window
+    /// that only nudged into the band is caught at the edge instead. Only a
+    /// move counts: a resize, the user's or a macOS tile's (which fills to
+    /// the screen's bottom while the native Dock is hidden), still stops at
+    /// the edge.
+    static func staysBehindDock(_ window: CGRect, draggedFrom previous: CGRect, workArea: CGRect, screen: CGRect) -> Bool {
+        let sameSize = abs(window.width - previous.width) <= 1 && abs(window.height - previous.height) <= 1
+        let moved = abs(window.minX - previous.minX) > 0.5 || abs(window.minY - previous.minY) > 0.5
+        guard sameSize, moved, isOnScreen(window, screen) else { return false }
+        return window.maxY - workArea.maxY > edgeCatchDistance
+    }
+
+    /// The title bar decides which display a window belongs to.
+    private static func isOnScreen(_ window: CGRect, _ screen: CGRect) -> Bool {
+        screen.contains(CGPoint(x: window.midX, y: window.minY + min(window.height, 30) / 2))
     }
 }
 
@@ -290,7 +308,9 @@ final class BottomMarginEnforcer {
     private func markDirty(_ pids: [pid_t]) {
         guard isEnabled, !pids.isEmpty else { return }
         dirtyPIDs.formUnion(pids)
-        scheduleFlush(after: .milliseconds(120))
+        // Short, so a window that opens under the dock is moved before it
+        // shows there for long; still enough to coalesce a burst of events.
+        scheduleFlush(after: .milliseconds(50))
     }
 
     private func scheduleFlush(after delay: Duration) {
@@ -326,20 +346,27 @@ final class BottomMarginEnforcer {
         let memory = self.memory
         let growLine = pendingGrowLine
         pendingGrowLine = nil
+        // The flush runs within a moment of the mouse coming up, or of the
+        // 1.5 s re-check for apps that don't report moves.
+        let afterDrag = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: .leftMouseDragged) < 2
         Logger.windows.info("Enforcing \(pids.count, privacy: .public) app(s); reserved line y=\(Int(workArea.maxY), privacy: .public) (reserved \(Int(area.reservedBottomHeight), privacy: .public) pt)")
         await windows.performAX {
             for pid in pids {
-                AXWindowOps.enforce(pid: pid, workArea: workArea, screen: screen, growFrom: growLine, memory: memory)
+                AXWindowOps.enforce(pid: pid, workArea: workArea, screen: screen, growFrom: growLine, afterDrag: afterDrag, memory: memory)
             }
         }
     }
 }
 
-/// Remembers windows whose app refused our last adjustment (minimum sizes,
-/// fixed frames) so the enforcer doesn't loop on its own resize notifications.
+/// What the enforcer knows about windows between passes: the ones whose app
+/// refused our last adjustment (minimum sizes, fixed frames), so it doesn't
+/// loop on its own resize notifications; the ones the user dragged behind the
+/// dock; and every window's last frame, to tell what a drag moved.
 final class EnforcementMemory: @unchecked Sendable {
     private let lock = NSLock()
     private var refused: [AXElementRef: CGRect] = [:]
+    private var leftBehind: [AXElementRef: CGRect] = [:]
+    private var lastSeen: [AXElementRef: CGRect] = [:]
 
     func wasRefused(_ ref: AXElementRef, at frame: CGRect) -> Bool {
         lock.lock()
@@ -354,6 +381,34 @@ final class EnforcementMemory: @unchecked Sendable {
         refused[ref] = frame
     }
 
+    /// Whether the user left the window behind the dock at `frame`. Once it
+    /// moves again, by the user or the app, it's checked like any other.
+    func isLeftBehind(_ ref: AXElementRef, at frame: CGRect) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return leftBehind[ref] == frame
+    }
+
+    func leaveBehind(_ ref: AXElementRef, at frame: CGRect) {
+        lock.lock()
+        defer { lock.unlock() }
+        if leftBehind.count > 512 { leftBehind.removeAll() }
+        leftBehind[ref] = frame
+    }
+
+    /// Stores the window's frame and returns the one seen before, if any.
+    @discardableResult
+    func see(_ ref: AXElementRef, at frame: CGRect) -> CGRect? {
+        lock.lock()
+        defer { lock.unlock() }
+        if lastSeen.count > 2048 { lastSeen.removeAll() }
+        let previous = lastSeen[ref]
+        lastSeen[ref] = frame
+        return previous
+    }
+
+    /// Forgets refusals, after the reserved line moved. Windows the user put
+    /// behind the dock stay there.
     func reset() {
         lock.lock()
         refused.removeAll()
@@ -485,8 +540,9 @@ enum AXWindowOps {
     // MARK: Screen-space enforcement
 
     /// Moves/shrinks every standard window of `pid` that reaches into the
-    /// reserved band. Called on the AX queue.
-    static func enforce(pid: pid_t, workArea: CGRect, screen: CGRect, growFrom previousLimit: CGFloat? = nil, memory: EnforcementMemory) {
+    /// reserved band, except one the user just dragged well past it
+    /// (`afterDrag`: the mouse was dragged a moment ago). Called on the AX queue.
+    static func enforce(pid: pid_t, workArea: CGRect, screen: CGRect, growFrom previousLimit: CGFloat? = nil, afterDrag: Bool = false, memory: EnforcementMemory) {
         let app = AXUIElementCreateApplication(pid)
         AXUIElementSetMessagingTimeout(app, 1.0)
         guard let windows = copy(app, kAXWindowsAttribute) as? [AXUIElement] else { return }
@@ -495,7 +551,15 @@ enum AXWindowOps {
                   (copy(window, "AXFullScreen") as? Bool) != true,
                   let current = frame(of: window) else { continue }
             let ref = AXElementRef(window)
-            if memory.wasRefused(ref, at: current) { continue }
+            let previous = memory.see(ref, at: current)
+            if memory.wasRefused(ref, at: current) || memory.isLeftBehind(ref, at: current) { continue }
+            // A window seen for the first time (just opened) is always fitted.
+            if afterDrag, let previous,
+               ScreenSpaceMath.staysBehindDock(current, draggedFrom: previous, workArea: workArea, screen: screen) {
+                memory.leaveBehind(ref, at: current)
+                Logger.windows.info("pid \(pid, privacy: .public): \(String(describing: current), privacy: .public) dragged behind the dock; left there")
+                continue
+            }
             let canResize = isSettable(window, kAXSizeAttribute)
             let shrunk = ScreenSpaceMath.adjustedFrame(for: current, workArea: workArea, screen: screen, canResize: canResize)
             let grown = previousLimit.flatMap {
@@ -507,6 +571,7 @@ enum AXWindowOps {
 
             // Apps with minimum sizes may refuse; remember so we don't loop.
             let result = frame(of: window)
+            if let result { memory.see(ref, at: result) }
             let complies = result.map {
                 ScreenSpaceMath.adjustedFrame(for: $0, workArea: workArea, screen: screen, canResize: false) == nil
             } ?? true

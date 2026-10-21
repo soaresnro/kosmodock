@@ -128,6 +128,7 @@ Git workflow:
 - `BottomMarginEnforcer`:
   - waits while any mouse button is down;
   - remembers windows that refuse a frame (`EnforcementMemory`) to avoid resize loops;
+  - leaves a window the user dragged more than `edgeCatchDistance` past the line behind the dock, like the native Dock. It counts only moves with the size unchanged, of a window seen before, within 2 s of a mouse drag (`CGEventSource.secondsSinceLastEventType`). Resizes and macOS tiles, which change the size, still stop at the line;
   - grows windows that sat exactly on the previous line when the line moves down (the last line is persisted in UserDefaults);
   - re-checks the frontmost app every 1.5 s, because some apps don't emit moved/resized notifications to app-level observers.
 

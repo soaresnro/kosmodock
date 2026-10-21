@@ -1077,7 +1077,7 @@ private struct BehaviorSettingsView: View {
             Section {
                 Toggle(isOn: model.binding(\.behavior.reserveScreenSpace)) {
                     Text("Reserve screen space (push windows above the dock)")
-                    Text("Windows that reach into the dock's band are moved up or shrunk to stop at its top edge, like the native Dock. Turn off to use Intellihide: the dock slides away while a window overlaps it and returns when the pointer touches the bottom edge.")
+                    Text("Windows that reach into the dock's band are moved up or shrunk to stop at its top edge, like the native Dock; drag one well past the edge to leave it behind the dock. Turn off to use Intellihide: the dock slides away while a window overlaps it and returns when the pointer touches the bottom edge.")
                 }
                 if model.config.behavior.reserveScreenSpace, let area = model.safeWorkAreaProvider?() {
                     LabeledContent("Reserved height", value: "\(Int(area.reservedBottomHeight.rounded())) pt")
