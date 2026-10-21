@@ -72,6 +72,9 @@ final class DockController {
     private let animator = WindowMinimizeAnimator()
     private let intellihide = IntellihideController()
     private var workspaceSwipe: WorkspaceSwipeMonitor?
+    private var stackScroll: WidgetStackScrollMonitor?
+    private var windowPreviews: WindowPreviewController?
+    private var keyboardFocus: DockKeyboardFocusController?
 
     private var hasPlacedDock = false
     private var lastWorkArea: SafeWorkArea?
@@ -106,6 +109,13 @@ final class DockController {
 
         configureIntellihide()
         workspaceSwipe = WorkspaceSwipeMonitor(panel: dockPanel, model: model)
+        let stackScroll = WidgetStackScrollMonitor(panel: dockPanel, model: model) { [weak self] in self?.geometry.capsuleFrames ?? [:] }
+        self.stackScroll = stackScroll
+        workspaceSwipe?.yields = { [weak stackScroll] event in stackScroll?.claims(event) ?? false }
+        windowPreviews = WindowPreviewController(model: model, level: NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2))
+        windowPreviews?.onShowingChange = { [weak self] in self?.intellihide.evaluate() }
+        keyboardFocus = DockKeyboardFocusController(panel: dockPanel, model: model)
+        keyboardFocus?.onActiveChange = { [weak self] in self?.intellihide.evaluate() }
 
         let center = NotificationCenter.default
         tokens.append(center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in
@@ -273,6 +283,7 @@ final class DockController {
         let appearance = model.theme.appearance.nsAppearance
         dockPanel.appearance = appearance
         popoverPanel.appearance = appearance
+        windowPreviews?.setAppearance(appearance)
     }
 
     // MARK: Intellihide
@@ -283,6 +294,7 @@ final class DockController {
         intellihide.isPinned = { [weak self] in
             guard let self else { return false }
             return self.popoverState.isPresented || self.isMenuTracking || self.model.expandedGroupID != nil
+                || self.windowPreviews?.isShowing == true || self.keyboardFocus?.isActive == true
         }
         intellihide.applyHidden = { [weak self] hidden in self?.setDockHidden(hidden) }
     }

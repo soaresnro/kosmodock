@@ -254,6 +254,7 @@ struct AppIconButton: View {
         .scaleEffect(isHovering && model.theme.hoverEffect == .scale ? 1.14 : 1, anchor: .bottom)
         .animation(model.spring, value: isHovering)
         .onHover { isHovering = $0 }
+        .windowPreviews(for: app)
         .appMenu(app, group: group)
         .help(app.name)
     }
@@ -308,6 +309,7 @@ struct PinnedAppView: View {
         .animation(model.spring, value: minimized)
         .onHover { isHovering = $0 }
         .onChange(of: model.pulseTokens[itemID] ?? 0) { _, _ in pulse() }
+        .windowPreviews(for: app)
         .appMenu(app, group: nil)
         .accessibilityLabel(model.workspace.displayName(for: app))
         .help(model.workspace.displayName(for: app))

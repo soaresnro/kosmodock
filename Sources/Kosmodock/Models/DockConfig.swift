@@ -464,6 +464,8 @@ struct DockTile: Codable, Equatable, Identifiable, Sendable {
     var countdown: CountdownOptions?
     /// Time progress: day, week, month or year.
     var period: TimePeriod?
+    /// The tiles stacked under this one, in order (`WidgetStacks.swift`).
+    var stack: [String]?
 }
 
 /// Interface language. `system` follows macOS (English when unsupported).
@@ -548,7 +550,7 @@ extension DockConfig {
     /// empty `order` (configs from before it) gives exactly that default.
     /// With workspaces, the active one's items, and only those.
     var barOrder: [String] {
-        let defaults = pinnedApps.map(Self.itemID(forPinned:)) + groups.map(\.id) + tiles.map(Self.itemID(for:))
+        let defaults = pinnedApps.map(Self.itemID(forPinned:)) + groups.map(\.id) + barTiles.map(Self.itemID(for:))
             + folders.map(Self.itemID(for:)) + spacers.map(Self.itemID(for:))
         let known = Set(defaults)
         var seen = Set<String>()
@@ -675,6 +677,13 @@ struct BehaviorConfig: Codable, Equatable, Sendable {
     /// Right-clicking an app adds the items of its own Dock menu, read from
     /// the native Dock through Accessibility.
     var showsAppDockMenu: Bool = true
+    /// Resting the pointer on a running app's icon shows its windows.
+    var showsWindowPreviews: Bool = true
+    /// Seconds the pointer rests before the previews show (0…2).
+    var windowPreviewDelay: Double = 0.4
+    var windowPreviewsNeedTwoWindows: Bool = false
+    /// ⌃⌥D puts keyboard focus on the dock.
+    var dockFocusHotKey: Bool = true
 }
 
 struct TelemetryConfig: Codable, Equatable, Sendable {
@@ -937,6 +946,10 @@ extension BehaviorConfig {
         language = try c.decode(.language, or: d.language)
         showsNotificationBadges = try c.decode(.showsNotificationBadges, or: d.showsNotificationBadges)
         showsAppDockMenu = try c.decode(.showsAppDockMenu, or: d.showsAppDockMenu)
+        showsWindowPreviews = try c.decode(.showsWindowPreviews, or: d.showsWindowPreviews)
+        windowPreviewDelay = try c.decode(.windowPreviewDelay, or: d.windowPreviewDelay)
+        windowPreviewsNeedTwoWindows = try c.decode(.windowPreviewsNeedTwoWindows, or: d.windowPreviewsNeedTwoWindows)
+        dockFocusHotKey = try c.decode(.dockFocusHotKey, or: d.dockFocusHotKey)
     }
 }
 
@@ -970,6 +983,7 @@ extension DockTile {
         pomodoro = try c.decodeIfPresent(PomodoroOptions.self, forKey: .pomodoro)
         countdown = try c.decodeIfPresent(CountdownOptions.self, forKey: .countdown)
         period = try c.decodeIfPresent(TimePeriod.self, forKey: .period)
+        stack = try c.decodeIfPresent([String].self, forKey: .stack)
     }
 }
 
