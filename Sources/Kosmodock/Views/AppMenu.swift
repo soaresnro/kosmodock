@@ -135,6 +135,11 @@ enum AppMenuPresenter {
         }
         menu.addItem(.separator())
         add(L10n.tr("Show in Finder")) { model.workspace.revealInFinder(app) }
+        // After the menu closes, so the file panel takes the focus.
+        add(L10n.tr("Choose Icon…")) { Task { @MainActor in model.icons.chooseIcon(for: app) } }
+        if model.icons.hasCustomIcon(app) {
+            add(L10n.tr("Restore Icon")) { model.icons.setIcon(nil, for: app) }
+        }
         if let group {
             add(L10n.tr("Remove from %@", group.name)) { model.remove(app, from: group) }
         } else {

@@ -197,6 +197,8 @@ struct DockBar: View {
                 content.fixedSize()
             }
         }
+        // Seasonal decorations and roaming pets, outside the layout.
+        .barLooks(surface: surface)
         .background(SurfaceBackground(surface: surface, cornerRadius: CGFloat(surface.cornerRadius)))
         .background {
             GeometryReader { proxy in

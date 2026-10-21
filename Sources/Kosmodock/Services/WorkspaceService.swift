@@ -22,6 +22,17 @@ final class WorkspaceService {
     @ObservationIgnored private var bundleIDCache: [String: String] = [:]
     @ObservationIgnored private var tokens: [NSObjectProtocol] = []
 
+    // Looks
+    /// Custom icons and icon packs (`IconLibrary`), asked before the app's own icon.
+    @ObservationIgnored var iconResolver: ((DockApp) -> NSImage?)?
+    /// Bumped when icons change, so every view showing one draws it again.
+    private(set) var iconRevision = 0
+
+    func iconsDidChange() {
+        iconCache.removeAll()
+        iconRevision += 1
+    }
+
     init() {
         let center = NSWorkspace.shared.notificationCenter
         let names: [Notification.Name] = [
@@ -104,9 +115,12 @@ final class WorkspaceService {
     }
 
     func icon(for app: DockApp) -> NSImage {
+        _ = iconRevision
         if let cached = iconCache[app.id] { return cached }
         let image: NSImage
-        if let url = url(for: app) {
+        if let custom = iconResolver?(app) {
+            image = custom
+        } else if let url = url(for: app) {
             image = NSWorkspace.shared.icon(forFile: url.path)
             image.size = NSSize(width: 256, height: 256)
         } else {
