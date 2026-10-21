@@ -57,6 +57,7 @@ extension DockTile {
     /// A command tile's label, or the kind's name.
     var title: String {
         if kind == .command, let label, !label.isBlank { return L10n.configText(label) }
+        if let title = timeTitle { return title }
         return kind.title
     }
 }
@@ -67,7 +68,7 @@ private struct TileContent: View {
 
     var body: some View {
         switch tile.kind {
-        case .clock: ClockTile(showsSeconds: tile.showsSeconds && isWide, isWide: isWide)
+        case .clock: ClockTile(tile: tile, isWide: isWide)
         case .battery: BatteryTile(isWide: isWide)
         case .activity: ActivityTile(isWide: isWide)
         case .network: NetworkTile(isWide: isWide)
@@ -77,14 +78,25 @@ private struct TileContent: View {
         case .github: GitHubTile(isWide: isWide)
         case .codex: CodexTile(isWide: isWide)
         case .reminders: RemindersTile(isWide: isWide)
+        // Time widgets
+        case .timer: TimerTile(tile: tile, isWide: isWide)
+        case .pomodoro: PomodoroTile(tile: tile, isWide: isWide)
+        case .countdown: CountdownTile(tile: tile, isWide: isWide)
+        case .stopwatch: StopwatchTile(tile: tile, isWide: isWide)
+        case .timeProgress: TimeProgressTile(tile: tile, isWide: isWide)
         case .command: CommandTile(tile: tile, isWide: isWide)
         }
     }
 }
 
 private struct ClockTile: View {
-    let showsSeconds: Bool
+    let tile: DockTile
     let isWide: Bool
+
+    /// Seconds show in the wide tile and on the analog face.
+    private var showsSeconds: Bool {
+        tile.showsSeconds && (isWide || tile.clockFace == .analog)
+    }
 
     var body: some View {
         if showsSeconds {
@@ -97,26 +109,33 @@ private struct ClockTile: View {
     @ViewBuilder
     private func content(at date: Date) -> some View {
         let locale = L10n.locale
+        let zone = tile.timeZoneValue
         if isWide {
             VStack(alignment: .leading, spacing: 1) {
-                Text(date, format: showsSeconds
-                    ? .dateTime.hour().minute().second().locale(locale)
-                    : .dateTime.hour().minute().locale(locale))
+                Text(date, format: (showsSeconds
+                    ? Date.FormatStyle.dateTime.hour().minute().second().locale(locale)
+                    : Date.FormatStyle.dateTime.hour().minute().locale(locale)).inZone(zone))
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                Text(date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(locale))
+                // A world clock names its city.
+                Text(tile.isWorldClock
+                     ? "\(tile.title) · \(date.formatted(.dateTime.weekday(.abbreviated).locale(locale).inZone(zone)))"
+                     : date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(locale)))
                     .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(.secondary)
             }
             .lineLimit(1)
             .minimumScaleFactor(0.75)
             .frame(maxWidth: .infinity, alignment: .leading)
+        } else if tile.clockFace == .analog {
+            AnalogClockFace(date: date, zone: zone, showsSeconds: showsSeconds)
+                .padding(3)
         } else {
             VStack(spacing: 0) {
-                Text(date.formatted(.dateTime.weekday(.abbreviated).locale(locale)).uppercased())
+                Text((tile.isWorldClock ? tile.title : date.formatted(.dateTime.weekday(.abbreviated).locale(locale))).uppercased())
                     .font(.system(size: 7.5, weight: .bold))
                     .foregroundStyle(.red)
-                Text(date, format: .dateTime.hour(.defaultDigits(amPM: .omitted)).minute().locale(locale))
+                Text(date, format: Date.FormatStyle.dateTime.hour(.defaultDigits(amPM: .omitted)).minute().locale(locale).inZone(zone))
                     .font(.system(size: 11.5, weight: .bold, design: .rounded))
                     .monospacedDigit()
             }
@@ -353,7 +372,7 @@ struct TilePopoverView: View {
                     }
                 }
                 switch tile.kind {
-                case .clock: ClockDetails()
+                case .clock: ClockDetails(tile: tile)
                 case .battery: BatteryDetails()
                 case .activity: ActivityDetails()
                 case .network: NetworkDetails()
@@ -363,6 +382,12 @@ struct TilePopoverView: View {
                 case .github: GitHubDetails()
                 case .codex: CodexDetails()
                 case .reminders: RemindersDetails()
+                // Time widgets
+                case .timer: TimerDetails(tile: tile)
+                case .pomodoro: PomodoroDetails(tile: tile)
+                case .countdown: CountdownDetails(tile: tile)
+                case .stopwatch: StopwatchDetails(tile: tile)
+                case .timeProgress: TimeProgressDetails(tile: tile)
                 case .command: CommandDetails(tile: tile)
                 }
             }
@@ -375,20 +400,33 @@ struct TilePopoverView: View {
 }
 
 private struct ClockDetails: View {
+    @Environment(AppModel.self) private var model
+    let tile: DockTile
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let locale = L10n.locale
+            let zone = tile.timeZoneValue
             VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(context.date, format: .dateTime.hour().minute().second().locale(locale))
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                    Text(context.date, format: .dateTime.weekday(.wide).day().month(.wide).year().locale(locale))
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 14) {
+                    if tile.clockFace == .analog {
+                        AnalogClockFace(date: context.date, zone: zone, showsSeconds: true, accent: model.accent)
+                            .frame(width: 64, height: 64)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(context.date, format: Date.FormatStyle.dateTime.hour().minute().second().locale(locale).inZone(zone))
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                        Text(context.date, format: Date.FormatStyle.dateTime.weekday(.wide).day().month(.wide).year().locale(locale).inZone(zone))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                BentoCard(title: context.date.formatted(.dateTime.month(.wide).year().locale(locale)), symbol: "calendar") {
-                    MonthGrid(date: context.date)
+                if tile.isWorldClock {
+                    WorldClockSummary(tile: tile, date: context.date)
+                }
+                BentoCard(title: context.date.formatted(Date.FormatStyle.dateTime.month(.wide).year().locale(locale).inZone(zone)), symbol: "calendar") {
+                    MonthGrid(date: context.date, zone: zone)
                 }
             }
         }
@@ -399,9 +437,10 @@ private struct ClockDetails: View {
 private struct MonthGrid: View {
     @Environment(AppModel.self) private var model
     let date: Date
+    var zone: TimeZone = .autoupdatingCurrent
 
     var body: some View {
-        let calendar = Self.calendar
+        let calendar = Self.calendar(in: zone)
         let start = calendar.dateInterval(of: .month, for: date)?.start ?? date
         let days = calendar.range(of: .day, in: .month, for: date)?.count ?? 30
         let leading = (calendar.component(.weekday, from: start) - calendar.firstWeekday + 7) % 7
@@ -428,9 +467,10 @@ private struct MonthGrid: View {
         }
     }
 
-    private static var calendar: Calendar {
+    private static func calendar(in zone: TimeZone) -> Calendar {
         var calendar = Calendar.current
         calendar.locale = L10n.locale
+        calendar.timeZone = zone
         return calendar
     }
 }
