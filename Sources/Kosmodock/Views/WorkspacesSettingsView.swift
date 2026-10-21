@@ -361,6 +361,7 @@ struct BarItemLabel: View {
                 case .group(let group): GroupGlyph(symbol: group.symbol, tint: model.tint(for: group), size: 22)
                 case .app(let app): AppIconView(app: app, size: 24, showsIndicator: false, badgeStyle: .hidden)
                 case .tile(let tile): GroupGlyph(symbol: tile.kind.symbol, tint: model.accent, size: 22)
+                case .extra(let extra): BarExtraIcon(extra: extra, size: 24)
                 }
             }
             .frame(width: 24, height: 24)
@@ -379,6 +380,7 @@ struct BarItemLabel: View {
         case .group(let group): group.name
         case .app(let app): model.workspace.displayName(for: app)
         case .tile(let tile): tile.title
+        case .extra(let extra): extra.title
         }
     }
 
@@ -387,6 +389,7 @@ struct BarItemLabel: View {
         case .group(let group): group.apps.count == 1 ? L10n.tr("Group · 1 app") : L10n.tr("Group · %lld apps", group.apps.count)
         case .app: L10n.tr("App")
         case .tile(let tile): L10n.tr("Widget · %@", tile.width.title)
+        case .extra(let extra): extra.subtitle
         }
     }
 }

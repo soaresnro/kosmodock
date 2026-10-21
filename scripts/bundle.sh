@@ -99,7 +99,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>NSAccessibilityUsageDescription</key>
     <string>Kosmodock uses Accessibility to move and resize the windows of your app groups for one-click tiling layouts.</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Kosmodock controls Music and Spotify only for the Now Playing widget: it reads the current track and plays, pauses or skips.</string>
+    <string>Kosmodock controls Music and Spotify only for the Now Playing widget: it reads the current track and plays, pauses or skips. It asks the Finder to empty the Trash only when you choose Empty Trash.</string>
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Kosmodock lists this folder's files only for the folder stacks you put on the Dock.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Kosmodock lists this folder's files only for the folder stacks you put on the Dock.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Kosmodock lists this folder's files only for the folder stacks you put on the Dock.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.</string>
     <key>NSCalendarsUsageDescription</key>

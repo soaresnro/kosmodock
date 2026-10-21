@@ -496,6 +496,11 @@ struct DockConfig: Codable, Equatable, Sendable {
     /// Bars to switch between (`Workspaces.swift`); none is a single bar.
     var workspaces: [Workspace] = []
     var activeWorkspaceID: String?
+    /// Folder stacks and spacers on the bar (`DockItems.swift`).
+    var folders: [DockFolder] = []
+    var spacers: [DockSpacer] = []
+    /// The Trash at the end of the bar.
+    var showsTrash = false
 }
 
 extension DockConfig {
@@ -505,11 +510,13 @@ extension DockConfig {
     static func itemID(for tile: DockTile) -> String { "tile:\(tile.id)" }
 
     /// The bar's item ids in order: `order` first, without unknown or repeated
-    /// ids, then whatever it leaves out, as pinned apps, groups, tiles. An
+    /// ids, then whatever it leaves out, as pinned apps, groups, tiles, folders,
+    /// spacers. The Trash is never in it: it's always last. An
     /// empty `order` (configs from before it) gives exactly that default.
     /// With workspaces, the active one's items, and only those.
     var barOrder: [String] {
         let defaults = pinnedApps.map(Self.itemID(forPinned:)) + groups.map(\.id) + tiles.map(Self.itemID(for:))
+            + folders.map(Self.itemID(for:)) + spacers.map(Self.itemID(for:))
         let known = Set(defaults)
         var seen = Set<String>()
         var result = activeOrder.filter { known.contains($0) && seen.insert($0).inserted }
@@ -719,6 +726,9 @@ extension DockConfig {
         order = try c.decode(.order, or: [])
         workspaces = DockConfig.normalizedWorkspaceIDs(try c.decode(.workspaces, or: []))
         activeWorkspaceID = try c.decodeIfPresent(String.self, forKey: .activeWorkspaceID)
+        folders = DockConfig.normalizedFolderIDs(try c.decode(.folders, or: []))
+        spacers = DockConfig.normalizedSpacerIDs(try c.decode(.spacers, or: []))
+        showsTrash = try c.decode(.showsTrash, or: false)
     }
 
     /// Unique tile ids, derived from the kind when missing.

@@ -17,6 +17,11 @@ struct EqualizesWidthKey: LayoutValueKey {
     static let defaultValue = false
 }
 
+/// Marks flexible spacers, which `CapsuleRow` gives the row's free width.
+struct FlexibleWidthKey: LayoutValueKey {
+    static let defaultValue = false
+}
+
 /// A row that gives every collapsed capsule the widest one's width, or as
 /// close to it as `maxWidth` allows. A `Layout` instead of a width measured
 /// into `@State`: `ViewThatFits` measures the candidates it isn't showing
@@ -29,7 +34,10 @@ struct CapsuleRow: Layout {
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
-        let widths = Self.widths(natural: sizes.map(\.width), equalized: subviews.map { $0[EqualizesWidthKey.self] }, spacing: spacing, maxWidth: maxWidth)
+        let widths = Self.widths(
+            natural: sizes.map(\.width), equalized: subviews.map { $0[EqualizesWidthKey.self] },
+            flexible: subviews.map { $0[FlexibleWidthKey.self] }, spacing: spacing, maxWidth: maxWidth
+        )
         return CGSize(
             width: widths.reduce(0, +) + spacing * CGFloat(max(0, subviews.count - 1)),
             height: sizes.map(\.height).max() ?? 0
@@ -38,7 +46,10 @@ struct CapsuleRow: Layout {
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
-        let widths = Self.widths(natural: sizes.map(\.width), equalized: subviews.map { $0[EqualizesWidthKey.self] }, spacing: spacing, maxWidth: maxWidth)
+        let widths = Self.widths(
+            natural: sizes.map(\.width), equalized: subviews.map { $0[EqualizesWidthKey.self] },
+            flexible: subviews.map { $0[FlexibleWidthKey.self] }, spacing: spacing, maxWidth: maxWidth
+        )
         // The row's height, so tiles (which fill it) match the capsules.
         let height = sizes.map(\.height).max() ?? 0
         var x = bounds.minX
@@ -56,7 +67,21 @@ struct CapsuleRow: Layout {
     /// the limit, one wide badge times every capsule would push the dock to a
     /// density that hides all badges. If even the natural widths don't fit,
     /// they're fully equalized: the row is too wide either way.
-    static func widths(natural: [CGFloat], equalized: [Bool], spacing: CGFloat, maxWidth: CGFloat) -> [CGFloat] {
+    ///
+    /// `flexible` subviews (flexible spacers, never equalized) count with their
+    /// own width while capsules are equalized, then share what's left of
+    /// `maxWidth`, so they only take room capsules don't need.
+    static func widths(natural: [CGFloat], equalized: [Bool], flexible: [Bool] = [], spacing: CGFloat, maxWidth: CGFloat) -> [CGFloat] {
+        var widths = equalizedWidths(natural: natural, equalized: equalized, spacing: spacing, maxWidth: maxWidth)
+        let flexes = natural.indices.filter { flexible.indices.contains($0) && flexible[$0] && !equalized[$0] }
+        let free = maxWidth - widths.reduce(0, +) - spacing * CGFloat(max(0, natural.count - 1))
+        guard !flexes.isEmpty, free >= 1 else { return widths }
+        let share = (free / CGFloat(flexes.count)).rounded(.down)
+        for index in flexes { widths[index] += share }
+        return widths
+    }
+
+    private static func equalizedWidths(natural: [CGFloat], equalized: [Bool], spacing: CGFloat, maxWidth: CGFloat) -> [CGFloat] {
         let shared = natural.indices.filter { equalized[$0] }.map { natural[$0] }.sorted()
         guard var level = shared.last else { return natural }
         let fixed = natural.indices.filter { !equalized[$0] }.reduce(0) { $0 + natural[$1] }
@@ -196,6 +221,8 @@ struct DockBar: View {
                         PinnedAppView(app: app, density: density)
                     case .tile(let tile):
                         TileView(tile: tile, isSquare: squareTiles || density == .minimal)
+                    case .extra(let extra):
+                        BarExtraView(extra: extra, density: density)
                     }
                 }
                 // Popovers and the minimize animation find items by these frames.
@@ -208,6 +235,7 @@ struct DockBar: View {
                     }
                 }
                 .layoutValue(key: EqualizesWidthKey.self, value: item.equalizesWidth(expandedGroupID: model.expandedGroupID))
+                .layoutValue(key: FlexibleWidthKey.self, value: item.isFlexibleSpacer)
             }
             if items.isEmpty {
                 EmptyDockHint()

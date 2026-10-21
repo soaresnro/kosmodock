@@ -8,10 +8,12 @@ struct PopoverRootView: View {
 
     var body: some View {
         ZStack {
-            if let id = state.itemID, model.group(id: id) != nil || model.tile(itemID: id) != nil {
+            if let id = state.itemID, model.group(id: id) != nil || model.tile(itemID: id) != nil || model.folder(itemID: id) != nil {
                 Group {
                     if let tile = model.tile(itemID: id) {
                         TilePopoverView(tileID: tile.id)
+                    } else if let folder = model.folder(itemID: id) {
+                        FolderStackPopoverView(folderID: folder.id)
                     } else {
                         BentoPopoverView(groupID: id)
                     }

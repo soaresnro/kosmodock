@@ -1,7 +1,10 @@
 /* Kosmodock — permission prompts (Info.plist). */
 
 "NSAccessibilityUsageDescription" = "A Kosmodock usa a Acessibilidade para mover e redimensionar as janelas dos seus grupos de apps e organizá-las com um clique.";
-"NSAppleEventsUsageDescription" = "A Kosmodock controla o Música e o Spotify só para o widget Tocando agora: ela lê a faixa atual e toca, pausa ou pula.";
+"NSAppleEventsUsageDescription" = "A Kosmodock controla o Música e o Spotify só para o widget Tocando agora: ela lê a faixa atual e toca, pausa ou pula. Ela pede ao Finder para esvaziar o Lixo só quando você escolhe Esvaziar Lixo.";
+"NSDesktopFolderUsageDescription" = "A Kosmodock lista os arquivos desta pasta só para as pastas que você põe na Dock.";
+"NSDocumentsFolderUsageDescription" = "A Kosmodock lista os arquivos desta pasta só para as pastas que você põe na Dock.";
+"NSDownloadsFolderUsageDescription" = "A Kosmodock lista os arquivos desta pasta só para as pastas que você põe na Dock.";
 "NSCalendarsFullAccessUsageDescription" = "A Kosmodock lê seus calendários só para o widget Calendário, para mostrar os compromissos de hoje e de amanhã. Ela nunca os altera.";
 "NSCalendarsUsageDescription" = "A Kosmodock lê seus calendários só para o widget Calendário, para mostrar os compromissos de hoje e de amanhã. Ela nunca os altera.";
 "NSRemindersFullAccessUsageDescription" = "A Kosmodock lê seus lembretes só para o widget Lembretes, para mostrar o que está para vencer. Ela só altera um lembrete quando você o marca como concluído ali.";
