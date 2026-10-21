@@ -65,12 +65,50 @@ struct SystemSnapshot: Equatable, Sendable {
     }
 }
 
+/// What a command can print as a JSON object to draw its widget, like an
+/// xbar plugin. Every field is optional.
+struct CommandOutput: Equatable, Sendable {
+    /// Replaces the first line of output on the widget.
+    var text: String?
+    var detail: String?
+    /// An SF Symbol name.
+    var symbol: String?
+    var colorHex: String?
+    /// 0…1, drawn as a bar.
+    var progress: Double?
+    /// "ok", "warning" or "critical": overrides the exit status.
+    var level: HealthLevel?
+    /// Opened by the details' button.
+    var url: URL?
+
+    /// `nil` unless `stdout` is a JSON object.
+    init?(json stdout: String) {
+        guard stdout.hasPrefix("{"),
+              let object = try? JSONSerialization.jsonObject(with: Data(stdout.utf8)) as? [String: Any]
+        else { return nil }
+        text = object["text"] as? String
+        detail = object["detail"] as? String
+        symbol = object["symbol"] as? String
+        colorHex = object["color"] as? String
+        progress = (object["progress"] as? NSNumber).map { min(1, max(0, $0.doubleValue)) }
+        level = switch (object["status"] as? String)?.lowercased() {
+        case "ok", "green": .ok
+        case "warning", "yellow": .warning
+        case "critical", "error", "red": .critical
+        default: nil
+        }
+        url = (object["url"] as? String).flatMap(URL.init(string:))
+    }
+}
+
 /// Outcome of a custom command or command probe.
 struct ProbeResult: Sendable {
     var level: HealthLevel
     var summary: String
     var detail: String
     var updatedAt: Date
+    /// Set when the command printed a JSON object.
+    var output: CommandOutput?
 
     init(level: HealthLevel, summary: String, detail: String = "", updatedAt: Date = Date()) {
         self.level = level
@@ -101,6 +139,12 @@ struct ProbeResult: Sendable {
         }
         detail = String(stdout.prefix(600))
         updatedAt = Date()
+        if !result.timedOut, let output = CommandOutput(json: stdout) {
+            self.output = output
+            if let text = output.text { summary = String(text.prefix(42)) }
+            detail = output.detail ?? ""
+            if let level = output.level { self.level = level }
+        }
     }
 }
 
@@ -108,7 +152,7 @@ extension ProbeResult: Equatable {
     // `updatedAt` is deliberately excluded so identical results don't
     // invalidate SwiftUI views on every poll.
     static func == (lhs: ProbeResult, rhs: ProbeResult) -> Bool {
-        lhs.level == rhs.level && lhs.summary == rhs.summary && lhs.detail == rhs.detail
+        lhs.level == rhs.level && lhs.summary == rhs.summary && lhs.detail == rhs.detail && lhs.output == rhs.output
     }
 }
 
@@ -190,6 +234,20 @@ enum Format {
             ? String(format: "%.1f", locale: L10n.locale, value)
             : String(format: "%.0f", locale: L10n.locale, value)
         return short ? number + units[unit] : "\(number) \(units[unit])"
+    }
+
+    /// Compact counts: "980", "12K", "1.2M", "3.4B".
+    static func count(_ value: Int) -> String {
+        let number = Double(value)
+        let (scaled, unit): (Double, String) = switch abs(number) {
+        case ..<1000: (number, "")
+        case ..<1_000_000: (number / 1000, "K")
+        case ..<1_000_000_000: (number / 1_000_000, "M")
+        default: (number / 1_000_000_000, "B")
+        }
+        if unit.isEmpty { return "\(value)" }
+        let digits = abs(scaled) < 10 ? "%.1f" : "%.0f"
+        return String(format: digits, locale: L10n.locale, scaled) + unit
     }
 
     /// Compact percentage for badges: "12%", "0.4%".

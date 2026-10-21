@@ -98,6 +98,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <false/>
     <key>NSAccessibilityUsageDescription</key>
     <string>Kosmodock uses Accessibility to move and resize the windows of your app groups for one-click tiling layouts.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Kosmodock controls Music and Spotify only for the Now Playing widget: it reads the current track and plays, pauses or skips.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.</string>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.</string>
 </dict>
 </plist>
 PLIST

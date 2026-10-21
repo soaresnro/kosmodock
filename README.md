@@ -47,8 +47,13 @@ See [Build & run](#build--run) below. It takes a minute with Xcode or the Comman
 
 ## Privacy
 
-- **Nothing leaves your Mac.** Kosmodock makes no internet requests: no analytics, no update checks, no telemetry. The only sockets it opens are connections to `127.0.0.1` to check whether ports you configured are listening.
-- **What it reads:** CPU, memory and process usage through Mach/libproc; listening ports through `lsof`; Podman/Docker status through their CLIs (`podman machine list`, `podman ps`); and the output of shell commands **you** put in `config.json`. With a Battery or Network widget on the dock, it also reads the battery's charge, state and cycle count through IOKit, and the network interfaces' byte counters through `sysctl` (totals only, no connections or traffic contents).
+- **Nothing leaves your Mac.** Kosmodock makes no internet requests: no analytics, no update checks, no telemetry. The only sockets it opens are connections to `127.0.0.1` to check whether ports you configured are listening. Two things you add can reach the network on their own: the **GitHub** widget runs GitHub's `gh` command, which talks to GitHub with your `gh` login, and so can any shell command you configure.
+- **What it reads:** CPU, memory and process usage through Mach/libproc; listening ports through `lsof`; Podman/Docker status through their CLIs (`podman machine list`, `podman ps`); and the output of shell commands **you** put in `config.json`. Widgets read only while they're on the dock:
+  - **Battery:** charge, state and cycle count, through IOKit.
+  - **Network:** the interfaces' byte counters through `sysctl` (totals only, no connections or traffic contents).
+  - **Claude Code:** token counts and model names from Claude Code's transcripts in `~/.claude/projects` (never the messages), and the plan limits its status line saves to `~/.config/kosmodock/claude-limits.json`. *Set Up* adds that status line to `~/.claude/settings.json` only when you click it, keeps a copy as `settings.json.kosmodock-backup`, and *Remove* takes it out. An existing status line is left alone.
+  - **Now Playing:** the current track in Music or Spotify through AppleScript, and only while that app is already open. Its buttons play, pause and skip.
+  - **Calendar:** today's and tomorrow's events, read-only, through EventKit.
 - **Accessibility** is used only to move, resize, minimize, restore and raise windows, and to be notified when windows move or minimize. It reads window frames and titles (the titles are shown in *Minimized Windows*), never window contents.
 - **Global input:** to animate minimizes and close popovers, Kosmodock observes mouse clicks system-wide and checks key presses for exactly two keys, ⌘M and Escape. Nothing is logged or stored.
 - **The native Dock:** *Hide the native macOS Dock* changes four `com.apple.dock` preferences and restores your original values whenever Kosmodock quits or crashes (see [Native Dock suppression & recovery](#native-dock-suppression--recovery)). To restore them by hand: `defaults delete com.apple.dock autohide-delay; defaults write com.apple.dock autohide -bool false; killall Dock`.
@@ -94,6 +99,8 @@ swift build && .build/debug/Kosmodock --render-snapshots /tmp/kosmodock-snaps
 
 Accessibility is the **only** permission Kosmodock needs (System Settings → Privacy & Security → Accessibility). Tiling, keeping windows above the dock, and minimize-into-group all depend on it. Kosmodock asks once at launch; the popover, Settings → Permissions and the menu also have a *Grant Access* button. Screen Recording and Input Monitoring are not used.
 
+Two widgets ask for their own permission the first time they need it: **Now Playing** (Automation, to control Music or Spotify) and **Calendar** (Calendars, read-only). Without them, the rest of Kosmodock works as before.
+
 macOS ties the grant to the app's code signature. An ad-hoc signature (`codesign -s -`) changes on every build, so after a rebuild the switch in System Settings still looks on but belongs to the previous build. `scripts/setup-signing.sh` creates a self-signed **Kosmodock Local Signing** certificate in your login keychain, and `bundle.sh` uses it automatically. The identity then stays the same across builds, and so does the grant. `bash scripts/setup-signing.sh --remove` deletes it. Downloaded releases use a different certificate, so macOS treats a release and your own build as different apps: switching between them means granting Accessibility again.
 
 **Switch is on but Kosmodock still asks?** The entry belongs to an older build. Reset it and grant again:
@@ -119,7 +126,11 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
 - The **⊞ button** at the end of the dock, and the menu bar icon, open the Kosmodock menu: Settings, hide native Dock, Focus Mode, expansion mode, reload/open config, Quit.
 - **Windows never sit behind the dock.** With *Reserve screen space* on (the default), an Accessibility observer watches every app. When a window reaches into the dock's band, it is moved up, or shrunk if it's taller than the work area. Tiling presets use the same work area. Turn the option off to get **Intellihide**: the dock slides below the screen edge while a window overlaps it, and comes back when the pointer touches the bottom edge.
 - **Minimize into groups.** Minimizing a window plays a card animation from the window into its group's capsule, and the capsule bounces. The minimize can come from the yellow button, ⌘M, *Minimize to Group* in the menu, or clicking the frontmost app's icon. The capsule shows a counter, and the group's popover lists *Minimized Windows*; clicking one plays the reverse animation and restores it. Clicking an app whose windows are all minimized restores the most recent one.
-- **Widgets** sit on the dock after the groups: Clock, Battery, CPU & Memory, Network and Command. Each is square (one reading) or wide (a reading and its details), and clicking one opens its details: a month calendar, battery status and cycle count, CPU and memory, download and upload, or a command's output. Add and arrange them in Settings → Widgets.
+- **Arrange the dock** in Settings → Dock: groups, single apps (a plain icon, like the Finder in the macOS Dock) and widgets go in any order. Drag them, or use *New Group*, *Add App* and *Add Widget* there. A single app's windows minimize into its icon.
+- **Widgets** are tiles on the dock, square (one reading) or wide (a reading and its details). Clicking one opens its details. Set them up in Settings → Widgets.
+  - **System:** Clock (with a month calendar), Battery, CPU & Memory, Network.
+  - **Apps:** Claude Code (tokens, and your plan's 5-hour and weekly limits once its status line is set up), Now Playing (Music or Spotify, with controls), Calendar (the next event, today and tomorrow), GitHub (your open pull requests and the ones waiting for your review, through `gh`).
+  - **Your own:** Command runs a shell command and shows its first line, or draws the tile from a JSON object it prints (see [Configuration](#configuration)).
 - **Styles and effects** live in Settings → Appearance. Pick one of six styles (Glass, Midnight, Graphite, Neon, Paper, Floating) and fine-tune its colors, border, glow and corners. Choose the hover effect (none, scale, or macOS-style magnification), the launch animation (bounce, pulse, shake) and the running-app indicator (dot, line or hidden, in the accent or group color).
 - The dock **adapts to screen width**. Every capsule takes the widest one's width while it fits, wide widgets turn square, and then the dock steps down from full labels to a compact layout (icons over badge), then status dots, and finally scrolls.
 
@@ -176,13 +187,25 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
                   "command": "gh run list -L1 --json conclusion -q '.[0].conclusion'" }
     }
   ],
-  "tiles": [                                  // widgets after the groups
-    { "kind": "clock", "width": "wide", "showsSeconds": false },   // clock|battery|activity|network|command
+  "tiles": [
+    { "kind": "clock", "width": "wide", "showsSeconds": false },
+    // clock|battery|activity|network|claudeCode|nowPlaying|calendar|github|command
     { "kind": "battery", "width": "square" },                       // square|wide
     { "kind": "command", "label": "Build", "command": "make -q && echo ok", "interval": 30 }
-  ]
+  ],
+  "pinnedApps": [ { "name": "Finder", "bundleId": "com.apple.finder" } ],   // single apps, as plain icons
+  "order": ["app:com.apple.finder", "backend", "tile:clock"]  // group ids, app:<bundleId|path>, tile:<id>; the rest follows
 }
 ```
+
+A command (in a `customCommand` group widget or a Command tile) can draw its widget by printing a JSON object instead of text. Every field is optional:
+
+```json
+{ "text": "Deploy", "detail": "2 min ago", "symbol": "cloud.fill", "color": "#2EC27E",
+  "progress": 0.6, "status": "ok", "url": "https://github.com/me/app/actions" }
+```
+
+`symbol` is an SF Symbol name, `progress` goes from 0 to 1, `status` (`ok`, `warning`, `critical`) overrides the exit code, and `url` adds an *Open* button to the details.
 
 | Widget | Capsule badge | Popover |
 | --- | --- | --- |
