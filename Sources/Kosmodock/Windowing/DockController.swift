@@ -76,6 +76,7 @@ final class DockController {
     private var windowPreviews: WindowPreviewController?
     private var keyboardFocus: DockKeyboardFocusController?
     private var dropZone: DropZoneController?
+    private lazy var petPeek = PetPeekController(model: model)
 
     private var hasPlacedDock = false
     private var lastWorkArea: SafeWorkArea?
@@ -303,6 +304,8 @@ final class DockController {
 
     private func setDockHidden(_ hidden: Bool) {
         if hidden { closePopover() }
+        model.isDockHidden = hidden
+        petPeek.dockDidChange(hidden: hidden, dockFrame: safeWorkArea().dockFrame, screen: dockScreen)
         let size = dockPanel.frame.size
         let target = NSRect(origin: hidden ? hiddenOrigin(for: size) : shownOrigin(for: size), size: size)
         NSAnimationContext.runAnimationGroup { context in

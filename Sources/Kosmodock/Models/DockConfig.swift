@@ -160,6 +160,13 @@ enum DockStyle: String, Codable, CaseIterable, Identifiable, Sendable {
     case neon
     case paper
     case floating
+    // Looks: seasonal styles, with decorations (`SeasonalDecoration`).
+    case halloween
+    case hauntedNight
+    case candyCorn
+    case christmas
+    case snowyNight
+    case candyCane
 
     var id: String { rawValue }
 
@@ -171,6 +178,13 @@ enum DockStyle: String, Codable, CaseIterable, Identifiable, Sendable {
         case .neon: L10n.tr("Neon")
         case .paper: L10n.tr("Paper")
         case .floating: L10n.tr("Floating")
+        // Looks
+        case .halloween: L10n.tr("Halloween")
+        case .hauntedNight: L10n.tr("Haunted Night")
+        case .candyCorn: L10n.tr("Candy Corn")
+        case .christmas: L10n.tr("Christmas")
+        case .snowyNight: L10n.tr("Snowy Night")
+        case .candyCane: L10n.tr("Candy Cane")
         }
     }
 
@@ -182,6 +196,13 @@ enum DockStyle: String, Codable, CaseIterable, Identifiable, Sendable {
         case .neon: L10n.tr("Black bar, magenta edge and a cyan glow.")
         case .paper: L10n.tr("Almost white, with a quiet border and short corners.")
         case .floating: L10n.tr("No bar: each capsule floats on its own glass.")
+        // Looks
+        case .halloween: L10n.tr("Purple and orange, lit pumpkins, bats and cobwebs.")
+        case .hauntedNight: L10n.tr("Ghostly green, rising fog, dripping slime and little ghosts.")
+        case .candyCorn: L10n.tr("Cream and orange, falling leaves and candies.")
+        case .christmas: L10n.tr("Pine green and gold, snow, icicles and twinkling lights.")
+        case .snowyNight: L10n.tr("Cold night blue, falling snow and warm lights.")
+        case .candyCane: L10n.tr("White with a striped border, snow and red and green lights.")
         }
     }
 
@@ -214,6 +235,43 @@ enum DockStyle: String, Codable, CaseIterable, Identifiable, Sendable {
             )
         case .floating:
             DockSurface(blur: false, fillOpacity: 0, borderOpacity: 0, borderWidth: 0, sheen: false, reflection: true)
+        // Looks
+        case .halloween:
+            DockSurface(
+                fillTopHex: "#3E1660", fillBottomHex: "#B4500F", fillOpacity: 0.9,
+                borderHex: "#FF9A3D", borderOpacity: 0.6, specularBorder: false,
+                glowHex: "#FF7A1A", glowOpacity: 0.3, sheen: false, cornerRadius: 20, decorations: decorationOptions
+            )
+        case .hauntedNight:
+            DockSurface(
+                fillTopHex: "#123A2C", fillBottomHex: "#03110C", fillOpacity: 0.88,
+                borderHex: "#9CFFC4", borderOpacity: 0.5, specularBorder: false,
+                glowHex: "#5CFF9D", glowOpacity: 0.4, sheen: false, cornerRadius: 20, decorations: decorationOptions
+            )
+        case .candyCorn:
+            DockSurface(
+                fillTopHex: "#FFF3D6", fillBottomHex: "#F7A54A", fillOpacity: 0.95,
+                borderHex: "#E2761B", borderOpacity: 0.75, specularBorder: false,
+                cornerRadius: 18, decorations: decorationOptions
+            )
+        case .christmas:
+            DockSurface(
+                fillTopHex: "#1F5537", fillBottomHex: "#0B2A1A", fillOpacity: 0.92,
+                borderHex: "#E9C46A", borderOpacity: 0.9, borderWidth: 1.5, specularBorder: false,
+                glowHex: "#E9C46A", glowOpacity: 0.22, sheen: false, cornerRadius: 18, decorations: decorationOptions
+            )
+        case .snowyNight:
+            DockSurface(
+                fillTopHex: "#1C2C52", fillBottomHex: "#080F24", fillOpacity: 0.86,
+                borderHex: "#C4DAFF", borderOpacity: 0.5, specularBorder: false,
+                glowHex: "#9CC2FF", glowOpacity: 0.22, cornerRadius: 22, decorations: decorationOptions
+            )
+        case .candyCane:
+            DockSurface(
+                fillTopHex: "#FFFFFF", fillBottomHex: "#F4EFEF", fillOpacity: 0.96,
+                borderHex: "#D7263D", borderOpacity: 0.9, borderWidth: 2, specularBorder: false,
+                sheen: false, cornerRadius: 20, decorations: decorationOptions
+            )
         }
     }
 }
@@ -244,11 +302,14 @@ struct DockSurface: Codable, Equatable, Sendable {
     var cornerRadius = 22.0
     /// A faded mirror image under each app icon on the dock.
     var reflection = false
+    /// Looks: drawn over and around the bar, in `SeasonalDecoration` order.
+    var decorations: [SeasonalDecoration] = []
 
     // Declared because both coding directions are hand-written (see the extension).
     enum CodingKeys: String, CodingKey {
         case blur, material, fillTopHex, fillBottomHex, fillAngle, fillOpacity, borderHex, borderOpacity
         case borderWidth, specularBorder, glowHex, glowOpacity, sheen, cornerRadius, reflection
+        case decorations
     }
 
     /// Whether there's a bar at all. Without one, capsules get their own glass.
@@ -354,6 +415,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case appCollection
     case shortcut
     case airDrop
+    // Looks
+    case pet
     case command
 
     var id: String { rawValue }
@@ -383,6 +446,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .appCollection: L10n.tr("App Collection")
         case .shortcut: L10n.tr("Shortcut")
         case .airDrop: "AirDrop"
+        case .pet: L10n.tr("Pet")
         case .command: L10n.tr("Command")
         }
     }
@@ -412,6 +476,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .appCollection: "square.grid.2x2"
         case .shortcut: "square.3.layers.3d"
         case .airDrop: "dot.radiowaves.left.and.right"
+        case .pet: "pawprint.fill"
         case .command: "terminal"
         }
     }
@@ -443,6 +508,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .battery, .activity, .network: .system
         case .clock, .timer, .pomodoro, .countdown, .stopwatch, .timeProgress: .time
+        // Looks
+        case .pet: .system
         case .claudeCode, .nowPlaying, .calendar, .github, .codex, .reminders: .apps
         case .screenshots, .shelf, .files, .airDrop: .files
         case .bookmarks, .appCollection, .shortcut: .custom
@@ -513,6 +580,8 @@ struct DockTile: Codable, Equatable, Identifiable, Sendable {
     var shortcutName: String?
     var shortcutSymbol: String?
     var shortcutTintHex: String?
+    /// Pet: its animal and how it behaves (`petOptions`).
+    var pet: PetOptions?
 }
 
 /// Interface language. `system` follows macOS (English when unsupported).
@@ -673,6 +742,12 @@ struct ThemeConfig: Codable, Equatable, Sendable {
     var launchAnimation: LaunchAnimation = .bounce
     var indicatorStyle: IndicatorStyle = .dot
     var indicatorColor: IndicatorColor = .accent
+    // Looks
+    /// Folder name of the icon pack in `icon-packs/` drawn for every app it covers.
+    var iconPack: String?
+    /// Custom icons by bundle id (or `DockApp.id`): an image path, or "" for
+    /// the app's own icon even when a pack covers it.
+    var appIcons: [String: String] = [:]
 
     /// The surface was edited after its style was picked.
     var isCustomized: Bool { surface != style.surface }
@@ -932,6 +1007,8 @@ extension ThemeConfig {
         launchAnimation = try c.decode(.launchAnimation, or: d.launchAnimation)
         indicatorStyle = try c.decode(.indicatorStyle, or: d.indicatorStyle)
         indicatorColor = try c.decode(.indicatorColor, or: d.indicatorColor)
+        iconPack = try c.decodeIfPresent(String.self, forKey: .iconPack)
+        appIcons = try c.decode(.appIcons, or: d.appIcons)
     }
 }
 
@@ -958,6 +1035,7 @@ extension DockSurface {
         sheen = try c.decode(.sheen, or: d.sheen)
         cornerRadius = try c.decode(.cornerRadius, or: d.cornerRadius)
         reflection = try c.decode(.reflection, or: d.reflection)
+        decorations = SeasonalDecoration.normalized(try c.decode(.decorations, or: d.decorations))
     }
 
     func encode(to encoder: Encoder) throws {
@@ -978,6 +1056,7 @@ extension DockSurface {
         try c.encode(sheen, forKey: .sheen)
         try c.encode(cornerRadius, forKey: .cornerRadius)
         try c.encode(reflection, forKey: .reflection)
+        try c.encode(decorations, forKey: .decorations)
     }
 }
 
@@ -1049,6 +1128,7 @@ extension DockTile {
         shortcutName = try c.decodeIfPresent(String.self, forKey: .shortcutName)
         shortcutSymbol = try c.decodeIfPresent(String.self, forKey: .shortcutSymbol)
         shortcutTintHex = try c.decodeIfPresent(String.self, forKey: .shortcutTintHex)
+        pet = try c.decodeIfPresent(PetOptions.self, forKey: .pet)
     }
 }
 

@@ -94,6 +94,8 @@ enum SnapshotRenderer {
             model: model, proposed: nil, name: "style-previews", in: directory
         )
 
+        write(PetGallery(), model: model, proposed: nil, name: "pets", in: directory)
+
         for group in model.config.groups {
             write(BentoPopoverView(groupID: group.id).fixedSize(), model: model, proposed: nil, name: "popover-\(group.id)", in: directory)
         }

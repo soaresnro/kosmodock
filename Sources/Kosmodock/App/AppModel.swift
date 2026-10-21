@@ -67,6 +67,10 @@ final class AppModel {
     var dockUndo = DockBarUndo()
     /// Which tile each widget stack shows.
     let widgetStacks = WidgetStackSelection()
+    // Looks
+    let pets: PetKeeper
+    /// Icon packs and custom icons, in front of the apps' own icons.
+    let icons: IconLibrary
 
     /// Group expanded inline in accordion mode.
     var expandedGroupID: String?
@@ -79,6 +83,8 @@ final class AppModel {
     var pulseTokens: [String: Int] = [:]
     /// Bar item with the keyboard focus ring (`DockKeyboardFocus`).
     var keyboardFocusItemID: String?
+    /// Intellihide has the dock off-screen; its animations pause.
+    var isDockHidden = false
 
     // Wired by the window layer.
     @ObservationIgnored var presentPopover: ((String) -> Void)?
@@ -94,6 +100,8 @@ final class AppModel {
         let workspace = WorkspaceService()
         self.workspace = workspace
         telemetry = TelemetryService(configService: configService, workspace: workspace)
+        pets = PetKeeper(configService: configService, telemetry: telemetry)
+        icons = IconLibrary(configService: configService, workspace: workspace)
         containers = ContainerMonitorService(configService: configService)
         timeWidgets = TimeWidgetService(directory: configService.fileURL.deletingLastPathComponent())
         let windows = WindowManagerService()
@@ -694,6 +702,7 @@ final class AppModel {
         reminders.setEnabled(kinds.contains(.reminders))
         timeWidgets.setTiles(config.tiles)
         fileWidgets.update(tiles: config.tiles)
+        pets.setEnabled(kinds.contains(.pet))
     }
 
     private func configDidChange(from old: DockConfig, to new: DockConfig) {

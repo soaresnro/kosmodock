@@ -734,6 +734,8 @@ private struct TileEditorSection: View {
                 TimeProgressSettingsRows(tile: tile)
             case .screenshots, .shelf, .files, .bookmarks, .appCollection, .shortcut, .airDrop:
                 FileWidgetEditor(tile: tile)
+            case .pet:
+                PetTileOptions(tile: tile)
             case .battery, .activity, .network:
                 EmptyView()
             }
@@ -819,6 +821,7 @@ private struct AppearanceSettingsView: View {
                 .disabled(model.theme.indicatorStyle == .hidden)
                 EffectsPreview()
             }
+            IconPackSettingsSection()
             Section("Layout") {
                 SliderRow(title: L10n.tr("Icon size"), value: model.binding(\.theme.iconSize), range: 20...64, step: 1, format: Self.points)
                 SliderRow(title: L10n.tr("Dock margin"), value: model.binding(\.theme.dockMargin), range: 0...80, step: 1, format: Self.points)
@@ -844,7 +847,13 @@ private struct AppearanceSettingsView: View {
             }
             Section {
                 Button("Restore Default Theme") {
-                    model.configService.update { $0.theme = ThemeConfig() }
+                    model.configService.update { config in
+                        // App icons have their own Restore System Icons.
+                        var theme = ThemeConfig()
+                        theme.iconPack = config.theme.iconPack
+                        theme.appIcons = config.theme.appIcons
+                        config.theme = theme
+                    }
                 }
             }
         }
@@ -879,6 +888,7 @@ private struct AppearanceSettingsView: View {
         }
         SliderRow(title: L10n.tr("Corner radius"), value: surfaceBinding(\.cornerRadius), range: 6...40, step: 1, format: Self.points)
         Toggle("Reflections under icons", isOn: surfaceBinding(\.reflection))
+        SeasonalDecorationToggles()
     }
 
     private func surfaceBinding<Value: Sendable>(_ keyPath: WritableKeyPath<DockSurface, Value>) -> Binding<Value> {
@@ -962,8 +972,23 @@ private struct DockStylePicker: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(DockStyle.Family.allCases, id: \.self) { family in
+                if family != .classic {
+                    Text(family.title)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 6)
+                }
+                grid(DockStyle.allCases.filter { $0.family == family })
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func grid(_ styles: [DockStyle]) -> some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
-            ForEach(DockStyle.allCases) { style in
+            ForEach(styles) { style in
                 let isSelected = model.theme.style == style
                 Button {
                     model.configService.update { $0.theme.apply(style) }
@@ -990,7 +1015,6 @@ private struct DockStylePicker: View {
                 .help(style.summary)
             }
         }
-        .padding(.vertical, 4)
     }
 }
 
@@ -1027,7 +1051,10 @@ struct DockStylePreview: View {
             }
             .padding(.horizontal, 7)
             .padding(.vertical, 5)
-            .background(SurfaceBackground(surface: surface, cornerRadius: radius, blending: .withinWindow, scale: scale))
+            .background {
+                SurfaceBackground(surface: surface, cornerRadius: radius, blending: .withinWindow, scale: scale)
+                    .overlay { SeasonalDecorationLayer(surface: surface, cornerRadius: radius, scale: scale, animates: false) }
+            }
             .padding(.bottom, 9)
         }
         .frame(height: 62)

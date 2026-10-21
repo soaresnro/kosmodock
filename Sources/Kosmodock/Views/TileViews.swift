@@ -82,6 +82,7 @@ private struct TileContent: View {
         case .stopwatch: StopwatchTile(tile: tile, isWide: isWide)
         case .timeProgress: TimeProgressTile(tile: tile, isWide: isWide)
         case .screenshots, .shelf, .files, .bookmarks, .appCollection, .shortcut, .airDrop: FileWidgetTile(tile: tile, isWide: isWide)
+        case .pet: PetTileContent(tile: tile, isWide: isWide)
         case .command: CommandTile(tile: tile, isWide: isWide)
         }
     }
@@ -387,6 +388,7 @@ struct TilePopoverView: View {
                 case .stopwatch: StopwatchDetails(tile: tile)
                 case .timeProgress: TimeProgressDetails(tile: tile)
                 case .screenshots, .shelf, .files, .bookmarks, .appCollection, .shortcut, .airDrop: FileWidgetDetails(tile: tile)
+                case .pet: PetDetails(tile: tile)
                 case .command: CommandDetails(tile: tile)
                 }
             }
