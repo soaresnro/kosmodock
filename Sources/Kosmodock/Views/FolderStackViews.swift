@@ -154,7 +154,7 @@ struct TrashDockView: View {
         .animation(model.spring, value: isTargeted)
         .onHover { isHovering = $0 }
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
-            FileDrop.urls(from: providers) { urls in model.moveToTrash(urls) }
+            FileDrop.loadURLs(from: providers) { urls in model.moveToTrash(urls) }
             return true
         }
         .contextMenu { TrashMenu() }
@@ -262,36 +262,6 @@ private struct SpacerMenu: View {
         }
         Divider()
         Button("Remove Spacer") { model.removeSpacer(id: spacer.id) }
-    }
-}
-
-/// File URLs dropped on the bar.
-enum FileDrop {
-    /// The file URLs among `providers`, on the main actor once all are loaded.
-    static func urls(from providers: [NSItemProvider], completion: @escaping @MainActor ([URL]) -> Void) {
-        let collector = URLCollector()
-        let group = DispatchGroup()
-        for provider in providers where provider.canLoadObject(ofClass: NSURL.self) {
-            group.enter()
-            _ = provider.loadObject(ofClass: NSURL.self) { object, _ in
-                if let url = (object as? NSURL) as URL?, url.isFileURL { collector.append(url) }
-                group.leave()
-            }
-        }
-        group.notify(queue: .main) {
-            MainActor.assumeIsolated { completion(collector.urls) }
-        }
-    }
-
-    private final class URLCollector: @unchecked Sendable {
-        private let lock = NSLock()
-        private var collected: [URL] = []
-
-        func append(_ url: URL) {
-            lock.withLock { collected.append(url) }
-        }
-
-        var urls: [URL] { lock.withLock { collected } }
     }
 }
 

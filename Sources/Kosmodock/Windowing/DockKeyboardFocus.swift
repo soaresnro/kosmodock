@@ -178,7 +178,7 @@ final class DockKeyboardFocusController {
             end()
             model.open(app)
         case .tile(let tile):
-            model.tap(model.shownTile(onBar: tile))
+            model.activate(model.shownTile(onBar: tile))
         case .extra(.folder(let folder)):
             model.tap(folder)
         case .extra(.trash):

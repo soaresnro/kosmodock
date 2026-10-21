@@ -138,6 +138,7 @@ enum AppMenuPresenter {
         if let group {
             add(L10n.tr("Remove from %@", group.name)) { model.remove(app, from: group) }
         } else {
+            add(L10n.tr("Create Collection")) { model.createCollection(from: app) }
             add(L10n.tr("Remove from Dock")) { model.unpinApp(itemID: DockConfig.itemID(forPinned: app)) }
         }
     }

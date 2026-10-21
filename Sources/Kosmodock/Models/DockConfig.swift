@@ -346,6 +346,14 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case countdown
     case stopwatch
     case timeProgress
+    // File and sharing widgets
+    case screenshots
+    case shelf
+    case files
+    case bookmarks
+    case appCollection
+    case shortcut
+    case airDrop
     case command
 
     var id: String { rawValue }
@@ -368,6 +376,13 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .countdown: L10n.tr("Countdown")
         case .stopwatch: L10n.tr("Stopwatch")
         case .timeProgress: L10n.tr("Time Progress")
+        case .screenshots: L10n.tr("Screenshots")
+        case .shelf: L10n.tr("Shelf")
+        case .files: L10n.tr("Recent Files")
+        case .bookmarks: L10n.tr("Bookmarks")
+        case .appCollection: L10n.tr("App Collection")
+        case .shortcut: L10n.tr("Shortcut")
+        case .airDrop: "AirDrop"
         case .command: L10n.tr("Command")
         }
     }
@@ -390,6 +405,13 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .countdown: "hourglass"
         case .stopwatch: "stopwatch"
         case .timeProgress: "calendar.day.timeline.left"
+        case .screenshots: "camera.viewfinder"
+        case .shelf: "tray.full"
+        case .files: "folder"
+        case .bookmarks: "bookmark"
+        case .appCollection: "square.grid.2x2"
+        case .shortcut: "square.3.layers.3d"
+        case .airDrop: "dot.radiowaves.left.and.right"
         case .command: "terminal"
         }
     }
@@ -401,7 +423,9 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case time
         /// Data from other apps.
         case apps
-        /// Your own, from a script.
+        /// Files on this Mac, and sending them.
+        case files
+        /// Your own: a script, links, apps or a shortcut.
         case custom
 
         var title: String {
@@ -409,6 +433,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
             case .system: L10n.tr("System")
             case .time: L10n.tr("Time")
             case .apps: L10n.tr("Apps")
+            case .files: L10n.tr("Files & Sharing")
             case .custom: L10n.tr("Custom")
             }
         }
@@ -419,6 +444,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .battery, .activity, .network: .system
         case .clock, .timer, .pomodoro, .countdown, .stopwatch, .timeProgress: .time
         case .claudeCode, .nowPlaying, .calendar, .github, .codex, .reminders: .apps
+        case .screenshots, .shelf, .files, .airDrop: .files
+        case .bookmarks, .appCollection, .shortcut: .custom
         case .command: .custom
         }
     }
@@ -466,6 +493,26 @@ struct DockTile: Codable, Equatable, Identifiable, Sendable {
     var period: TimePeriod?
     /// The tiles stacked under this one, in order (`WidgetStacks.swift`).
     var stack: [String]?
+    // File and sharing widgets (Models/FileWidgets.swift). Unset is the default.
+    /// Screenshots, files: how many the details show (6–60).
+    var fileCount: Int?
+    /// Screenshots, files: what clicking one does.
+    var fileAction: FileClickAction?
+    /// Files: the folder shown; Downloads when unset.
+    var filesFolder: String?
+    /// Shelf: paths of the parked files, newest first.
+    var shelfItems: [String]?
+    /// Shelf: a file dragged out leaves the shelf.
+    var removesOnDragOut: Bool?
+    var bookmarks: [Bookmark]?
+    /// Bookmarks: the browser's bundle id; the default browser when unset.
+    var bookmarkBrowser: String?
+    var collectionApps: [DockApp]?
+    var collectionLayout: CollectionLayout?
+    /// Shortcut: the name in the Shortcuts app, and the tile's symbol and color.
+    var shortcutName: String?
+    var shortcutSymbol: String?
+    var shortcutTintHex: String?
 }
 
 /// Interface language. `system` follows macOS (English when unsupported).
@@ -684,6 +731,9 @@ struct BehaviorConfig: Codable, Equatable, Sendable {
     var windowPreviewsNeedTwoWindows: Bool = false
     /// ⌃⌥D puts keyboard focus on the dock.
     var dockFocusHotKey: Bool = true
+    /// While files are dragged anywhere, a tray takes them to the shelf.
+    var dropZone: Bool = false
+    var dropZonePlacement: DropZonePlacement = .bottomLeft
 }
 
 struct TelemetryConfig: Codable, Equatable, Sendable {
@@ -950,6 +1000,8 @@ extension BehaviorConfig {
         windowPreviewDelay = try c.decode(.windowPreviewDelay, or: d.windowPreviewDelay)
         windowPreviewsNeedTwoWindows = try c.decode(.windowPreviewsNeedTwoWindows, or: d.windowPreviewsNeedTwoWindows)
         dockFocusHotKey = try c.decode(.dockFocusHotKey, or: d.dockFocusHotKey)
+        dropZone = try c.decode(.dropZone, or: d.dropZone)
+        dropZonePlacement = try c.decode(.dropZonePlacement, or: d.dropZonePlacement)
     }
 }
 
@@ -984,6 +1036,19 @@ extension DockTile {
         countdown = try c.decodeIfPresent(CountdownOptions.self, forKey: .countdown)
         period = try c.decodeIfPresent(TimePeriod.self, forKey: .period)
         stack = try c.decodeIfPresent([String].self, forKey: .stack)
+        // File and sharing widgets
+        fileCount = try c.decodeIfPresent(Int.self, forKey: .fileCount)
+        fileAction = try c.decodeIfPresent(FileClickAction.self, forKey: .fileAction)
+        filesFolder = try c.decodeIfPresent(String.self, forKey: .filesFolder)
+        shelfItems = try c.decodeIfPresent([String].self, forKey: .shelfItems)
+        removesOnDragOut = try c.decodeIfPresent(Bool.self, forKey: .removesOnDragOut)
+        bookmarks = try c.decodeIfPresent([Bookmark].self, forKey: .bookmarks)
+        bookmarkBrowser = try c.decodeIfPresent(String.self, forKey: .bookmarkBrowser)
+        collectionApps = try c.decodeIfPresent([DockApp].self, forKey: .collectionApps)
+        collectionLayout = try c.decodeIfPresent(CollectionLayout.self, forKey: .collectionLayout)
+        shortcutName = try c.decodeIfPresent(String.self, forKey: .shortcutName)
+        shortcutSymbol = try c.decodeIfPresent(String.self, forKey: .shortcutSymbol)
+        shortcutTintHex = try c.decodeIfPresent(String.self, forKey: .shortcutTintHex)
     }
 }
 

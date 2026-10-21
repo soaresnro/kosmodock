@@ -2,9 +2,9 @@
 
 "NSAccessibilityUsageDescription" = "Kosmodock uses Accessibility to move and resize the windows of your app groups for one-click tiling layouts.";
 "NSAppleEventsUsageDescription" = "Kosmodock controls Music and Spotify only for the Now Playing widget: it reads the current track and plays, pauses or skips. It asks the Finder to empty the Trash only when you choose Empty Trash.";
-"NSDesktopFolderUsageDescription" = "Kosmodock lists this folder's files only for the folder stacks you put on the Dock.";
-"NSDocumentsFolderUsageDescription" = "Kosmodock lists this folder's files only for the folder stacks you put on the Dock.";
-"NSDownloadsFolderUsageDescription" = "Kosmodock lists this folder's files only for the folder stacks you put on the Dock.";
+"NSDesktopFolderUsageDescription" = "Kosmodock lists files on the Desktop only for the folder stacks you put on the Dock, the Screenshots and Recent Files widgets and the Shelf. It changes a file only when you choose Move to Trash.";
+"NSDocumentsFolderUsageDescription" = "Kosmodock lists files in Documents only for the folder stacks you put on the Dock, the Recent Files widget and the Shelf. It changes a file only when you choose Move to Trash.";
+"NSDownloadsFolderUsageDescription" = "Kosmodock lists your downloads only for the folder stacks you put on the Dock, such as Downloads, and the Recent Files widget. It changes a file only when you choose Move to Trash.";
 "NSCalendarsFullAccessUsageDescription" = "Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.";
 "NSCalendarsUsageDescription" = "Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.";
 "NSRemindersFullAccessUsageDescription" = "Kosmodock reads your reminders only for the Reminders widget, to show what's due. It changes one only when you mark it as completed there.";

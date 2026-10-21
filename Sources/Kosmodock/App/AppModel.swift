@@ -50,6 +50,8 @@ final class AppModel {
     let reminders = RemindersService()
     /// Timers, pomodoros and stopwatches, saved next to config.json.
     let timeWidgets: TimeWidgetService
+    /// Screenshots, files and shortcut tiles (FileWidgetServices.swift).
+    let fileWidgets = FileWidgetService()
     let windows: WindowManagerService
     let systemDock: SystemDockManager
     let axHub: AXObserverHub
@@ -134,6 +136,7 @@ final class AppModel {
             service(false)
         }
         timeWidgets.stop()
+        fileWidgets.stopAll()
         axHub.stop()
         dockBadges.setActive(false)
         stopDockItems()
@@ -414,6 +417,7 @@ final class AppModel {
             case .github: Task { await github.refresh() }
             case .codex: Task { await codex.refresh() }
             case .reminders: reminders.refresh()
+            case .screenshots, .files: fileWidgets.rescan(tileID: tile.id)
             default: break
             }
             return
@@ -689,6 +693,7 @@ final class AppModel {
         codex.setEnabled(kinds.contains(.codex))
         reminders.setEnabled(kinds.contains(.reminders))
         timeWidgets.setTiles(config.tiles)
+        fileWidgets.update(tiles: config.tiles)
     }
 
     private func configDidChange(from old: DockConfig, to new: DockConfig) {
