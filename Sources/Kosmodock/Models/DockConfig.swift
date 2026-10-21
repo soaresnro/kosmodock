@@ -253,6 +253,77 @@ struct DockSurface: Codable, Equatable, Sendable {
     }
 }
 
+/// What grows under the pointer.
+enum HoverEffect: String, Codable, CaseIterable, Identifiable, Sendable {
+    case none
+    /// A capsule, icon or tile grows slightly.
+    case scale
+    /// Icons grow with their neighbors, like the macOS Dock's magnification.
+    case magnify
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .none: L10n.tr("None")
+        case .scale: L10n.tr("Scale")
+        case .magnify: L10n.tr("Magnify")
+        }
+    }
+}
+
+/// How an app's icon moves while the app launches.
+enum LaunchAnimation: String, Codable, CaseIterable, Identifiable, Sendable {
+    case none
+    case bounce
+    case pulse
+    case shake
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .none: L10n.tr("No animation")
+        case .bounce: L10n.tr("Bounce")
+        case .pulse: L10n.tr("Pulse")
+        case .shake: L10n.tr("Shake")
+        }
+    }
+}
+
+/// The mark under a running app's icon.
+enum IndicatorStyle: String, Codable, CaseIterable, Identifiable, Sendable {
+    case dot
+    case line
+    case hidden
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .dot: L10n.tr("Dot")
+        case .line: L10n.tr("Line")
+        case .hidden: L10n.tr("Hidden")
+        }
+    }
+}
+
+enum IndicatorColor: String, Codable, CaseIterable, Identifiable, Sendable {
+    /// The accent for the frontmost app, a neutral mark for the others.
+    case accent
+    /// The app's group tint.
+    case group
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .accent: L10n.tr("Accent")
+        case .group: L10n.tr("Group color")
+        }
+    }
+}
+
 /// Interface language. `system` follows macOS (English when unsupported).
 enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case system
@@ -326,6 +397,10 @@ struct ThemeConfig: Codable, Equatable, Sendable {
     var accentHex: String = "#8B7CFF"
     var appearance: AppearanceMode = .system
     var showGroupLabels: Bool = true
+    var hoverEffect: HoverEffect = .scale
+    var launchAnimation: LaunchAnimation = .bounce
+    var indicatorStyle: IndicatorStyle = .dot
+    var indicatorColor: IndicatorColor = .accent
 
     /// The surface was edited after its style was picked.
     var isCustomized: Bool { surface != style.surface }
@@ -506,6 +581,10 @@ extension ThemeConfig {
         accentHex = try c.decode(.accentHex, or: d.accentHex)
         appearance = try c.decode(.appearance, or: d.appearance)
         showGroupLabels = try c.decode(.showGroupLabels, or: d.showGroupLabels)
+        hoverEffect = try c.decode(.hoverEffect, or: d.hoverEffect)
+        launchAnimation = try c.decode(.launchAnimation, or: d.launchAnimation)
+        indicatorStyle = try c.decode(.indicatorStyle, or: d.indicatorStyle)
+        indicatorColor = try c.decode(.indicatorColor, or: d.indicatorColor)
     }
 }
 

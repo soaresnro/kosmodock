@@ -636,3 +636,60 @@ final class ThemeStyleTests: XCTestCase {
         XCTAssertEqual(theme.popoverSurface, DockStyle.glass.surface)
     }
 }
+
+/// Icons under the pointer grow with their neighbors without overlapping.
+final class MagnifierTests: XCTestCase {
+    private let magnifier = Magnifier(size: 34, spacing: 6, maxScale: 1.5)
+
+    func testNothingGrowsWithoutAPointer() {
+        XCTAssertEqual(magnifier.scales(count: 5, pointer: nil), [1, 1, 1, 1, 1])
+    }
+
+    func testTheIconUnderThePointerGrowsMost() {
+        let scales = magnifier.scales(count: 7, pointer: magnifier.center(of: 3))
+        XCTAssertEqual(scales[3], 1.5, accuracy: 0.0001)
+        XCTAssertGreaterThan(scales[3], scales[2])
+        XCTAssertEqual(scales[2], scales[4], accuracy: 0.0001)
+        XCTAssertGreaterThan(scales[2], 1)
+        XCTAssertEqual(scales[0], 1, "past the reach nothing grows")
+        XCTAssertEqual(scales[6], 1)
+    }
+
+    func testGrownIconsKeepTheirSpacing() {
+        let count = 6
+        for pointer in stride(from: CGFloat(-10), through: 250, by: 7) {
+            let scales = magnifier.scales(count: count, pointer: pointer)
+            let offsets = magnifier.offsets(scales: scales)
+            for index in 0..<(count - 1) {
+                let right = magnifier.center(of: index) + offsets[index] + 34 * scales[index] / 2
+                let left = magnifier.center(of: index + 1) + offsets[index + 1] - 34 * scales[index + 1] / 2
+                XCTAssertEqual(left - right, 6, accuracy: 0.0001, "pointer \(pointer), after icon \(index)")
+            }
+        }
+    }
+
+    func testTheRowsRoomCoversEveryPointer() {
+        let count = 5
+        let width = CGFloat(count) * 40 - 6
+        let room = magnifier.overflow(count: count)
+        XCTAssertGreaterThan(room, 0)
+        for pointer in stride(from: CGFloat(0), through: width, by: 0.5) {
+            let scales = magnifier.scales(count: count, pointer: pointer)
+            let offsets = magnifier.offsets(scales: scales)
+            let first = magnifier.center(of: 0) + offsets[0] - 34 * scales[0] / 2
+            let last = magnifier.center(of: count - 1) + offsets[count - 1] + 34 * scales[count - 1] / 2
+            XCTAssertGreaterThanOrEqual(first, -room - 0.5, "pointer \(pointer)")
+            XCTAssertLessThanOrEqual(last, width + room + 0.5, "pointer \(pointer)")
+        }
+    }
+
+    func testEffectsDecodeAndDefault() throws {
+        let theme = try JSONDecoder().decode(ThemeConfig.self, from: Data(#"{ "hoverEffect": "magnify", "launchAnimation": "shake", "indicatorStyle": "line", "indicatorColor": "group" }"#.utf8))
+        XCTAssertEqual(theme.hoverEffect, .magnify)
+        XCTAssertEqual(theme.launchAnimation, .shake)
+        XCTAssertEqual(theme.indicatorStyle, .line)
+        XCTAssertEqual(theme.indicatorColor, .group)
+        let defaults = ThemeConfig()
+        XCTAssertEqual([defaults.hoverEffect.rawValue, defaults.launchAnimation.rawValue, defaults.indicatorStyle.rawValue, defaults.indicatorColor.rawValue], ["scale", "bounce", "dot", "accent"])
+    }
+}

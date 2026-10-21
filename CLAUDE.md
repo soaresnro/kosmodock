@@ -76,6 +76,11 @@ Git workflow:
 - `DockSurface` writes unset fill colors as `null`, because a missing key falls back to the style's colors.
 - `--render-snapshots` also writes `dock-style-<id>.png` for every style.
 
+**Effects.** `ThemeConfig` holds `hoverEffect`, `launchAnimation`, `indicatorStyle` and `indicatorColor`.
+- Magnification (`Magnifier`, `MagnifyingRow`) only scales and offsets, so it never changes layout. With `spreads`, a row moves neighbors apart and keeps permanent padding for it.
+- Only the expanded accordion row spreads. Collapsed capsules' mini icons grow in place, because a wider capsule would widen every capsule (`CapsuleRow`).
+- `WorkspaceService.launching` holds apps launched from the dock until `isFinishedLaunching`, shown for at least 0.7 s and at most 10 s. `AppIconView` animates them with `LaunchMotion` and draws `RunningIndicator` outside it, so the mark stays put.
+
 **Coordinates.** AppKit rects are bottom-left origin; the Accessibility/Quartz API and `CGWindowList` are top-left origin of the primary display. `TilingEngine.accessibilityRect(fromCocoa:primaryScreenHeight:)` converts in both directions. `TilingEngine` is pure layout math in top-left space, which is why its tests read top-down.
 
 **Accessibility pipeline.**

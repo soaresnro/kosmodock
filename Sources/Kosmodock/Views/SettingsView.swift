@@ -449,6 +449,30 @@ private struct AppearanceSettingsView: View {
                     .disabled(!model.theme.isCustomized)
                 }
             }
+            Section("Effects") {
+                Picker("Hover effect", selection: model.binding(\.theme.hoverEffect)) {
+                    ForEach(HoverEffect.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                if model.theme.hoverEffect == .magnify {
+                    Text("Icons under the pointer grow with their neighbors, like the macOS Dock. Small icons on capsules grow in place, so capsules keep their size.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Picker("Launch animation", selection: model.binding(\.theme.launchAnimation)) {
+                    ForEach(LaunchAnimation.allCases) { Text($0.title).tag($0) }
+                }
+                Picker("Running indicator", selection: model.binding(\.theme.indicatorStyle)) {
+                    ForEach(IndicatorStyle.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                Picker("Indicator color", selection: model.binding(\.theme.indicatorColor)) {
+                    ForEach(IndicatorColor.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .disabled(model.theme.indicatorStyle == .hidden)
+                EffectsPreview()
+            }
             Section("Layout") {
                 SliderRow(title: L10n.tr("Icon size"), value: model.binding(\.theme.iconSize), range: 20...64, step: 1, format: Self.points)
                 SliderRow(title: L10n.tr("Dock margin"), value: model.binding(\.theme.dockMargin), range: 0...80, step: 1, format: Self.points)
@@ -537,6 +561,51 @@ private struct AppearanceSettingsView: View {
     static func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
     static func points(_ value: Double) -> String { "\(Int(value.rounded())) pt" }
     static func fractionalPoints(_ value: Double) -> String { String(format: "%.1f pt", locale: L10n.locale, value) }
+}
+
+/// Kosmodock's own icon with the chosen effects: hover it, or play the launch.
+private struct EffectsPreview: View {
+    @Environment(AppModel.self) private var model
+    @ViewState private var isLaunching = false
+    @ViewState private var isHovering = false
+
+    var body: some View {
+        let theme = model.theme
+        let size: CGFloat = 32
+        let hoverScale: CGFloat = switch theme.hoverEffect {
+        case .none: 1
+        case .scale: 1.14
+        case .magnify: 1.5
+        }
+        let indicator = theme.indicatorColor == .group
+            ? (model.config.groups.first.map(model.tint) ?? model.accent)
+            : model.accent
+        HStack {
+            Text("Preview")
+            Spacer()
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: size, height: size)
+                .modifier(LaunchMotion(animation: isLaunching ? theme.launchAnimation : .none, size: size))
+                .scaleEffect(isHovering ? hoverScale : 1, anchor: .bottom)
+                .animation(model.spring, value: isHovering)
+                .overlay(alignment: .bottom) {
+                    RunningIndicator(style: theme.indicatorStyle, color: indicator, iconSize: size)
+                }
+                .onHover { isHovering = $0 }
+                .padding(.top, 16)
+                .padding(.bottom, 8)
+                .padding(.horizontal, 12)
+            Button("Play") {
+                isLaunching = true
+                Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    isLaunching = false
+                }
+            }
+            .disabled(theme.launchAnimation == .none || isLaunching)
+        }
+    }
 }
 
 /// The styles as cards, each a miniature bar over a stand-in wallpaper.

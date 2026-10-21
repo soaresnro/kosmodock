@@ -284,7 +284,8 @@ private struct AppTile: View {
             model.open(app)
         } label: {
             VStack(spacing: 5) {
-                AppIconView(app: app, size: 42)
+                AppIconView(app: app, size: 42, tint: tint)
+                    .scaleEffect(isHovering && model.theme.hoverEffect == .magnify ? 1.18 : 1, anchor: .bottom)
                     .overlay(alignment: .topTrailing) {
                         let minimized = model.workspace.bundleID(for: app)
                             .map { model.minimizedWindows.windows(forBundleID: $0).count } ?? 0
@@ -323,7 +324,7 @@ private struct AppTile: View {
             .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
-        .scaleEffect(isHovering ? 1.03 : 1)
+        .scaleEffect(isHovering && model.theme.hoverEffect == .scale ? 1.03 : 1)
         .animation(model.spring, value: isHovering)
         .onHover { isHovering = $0 }
         .contextMenu { AppContextMenu(app: app, group: group) }
