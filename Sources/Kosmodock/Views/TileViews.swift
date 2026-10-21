@@ -14,6 +14,9 @@ struct TileView: View {
     /// A square tile's side: a collapsed capsule's height.
     static func unit(iconSize: Double) -> CGFloat { CGFloat(iconSize) * 0.62 + 18 }
 
+    /// A wide tile is four squares wide, about a collapsed two-app group.
+    static func wideWidth(iconSize: Double) -> CGFloat { (unit(iconSize: iconSize) * 4).rounded() }
+
     var body: some View {
         let theme = model.theme
         let unit = Self.unit(iconSize: theme.iconSize)
@@ -23,7 +26,7 @@ struct TileView: View {
         let isHighlighted = model.popoverItemID == DockConfig.itemID(for: tile)
         TileContent(tile: tile, isWide: isWide)
             .padding(.horizontal, isWide ? 9 : 3)
-            .frame(width: isWide ? (unit * 2.6).rounded() : unit)
+            .frame(width: isWide ? Self.wideWidth(iconSize: theme.iconSize) : unit)
             .frame(minHeight: unit, maxHeight: .infinity)
             .background {
                 shape.fill(Color.primary.opacity(isHighlighted ? 0.16 : (isHovering ? 0.12 : 0.07)))

@@ -148,7 +148,7 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
   - A new workspace starts as a copy of the current Dock.
 - **Notification badges** (unread counts and dots) show on app icons, read from the macOS Dock, which keeps running while hidden.
 - **Right-click an app** to get the items it puts in its own Dock menu (New Window, its window list, bookmarks…) before Kosmodock's actions. Kosmodock reads them by opening that app's menu in the hidden macOS Dock for a moment, so the menu takes about a tenth of a second longer.
-- **Widgets** are tiles on the dock, square (one reading) or wide (a reading and its details). Clicking one opens its details. Set them up in Settings → Widgets.
+- **Widgets** are tiles on the dock, square (one reading) or wide (four squares wide, about a two-app group: a reading and its details). Clicking one opens its details. Set them up in Settings → Widgets.
   - **System:** Battery, CPU & Memory, Network, and a **Pet** that sits while the Mac is quiet, walks while it works and runs when it's busy (CPU or memory). It naps after two quiet minutes, and *Put Out Food* wakes it. It can stay in its tile or walk along the top of the whole dock.
   - **Time:** Clock (with a month calendar, another city's time zone, and an analog face on the square tile), Timer, Pomodoro, Countdown, Stopwatch and Time progress (the day, week, month or year so far). Timers notify you when they end.
   - **Apps:**
