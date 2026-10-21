@@ -54,7 +54,10 @@ See [Build & run](#build--run) below. It takes a minute with Xcode or the Comman
   - **Claude Code:** token counts and model names from Claude Code's transcripts in `~/.claude/projects` (never the messages), and the plan limits from the status data its status line saves to `~/.config/kosmodock/claude-status.json`. *Set Up* adds that status line to `~/.claude/settings.json` only when you click it, keeps a copy as `settings.json.kosmodock-backup`, and *Remove* takes it out. An existing status line is left alone.
   - **Now Playing:** the current track in Music or Spotify through AppleScript, and only while that app is already open. Its buttons play, pause and skip.
   - **Calendar:** today's and tomorrow's events, read-only, through EventKit.
-- **Accessibility** is used only to move, resize, minimize, restore and raise windows, and to be notified when windows move or minimize. It reads window frames and titles (the titles are shown in *Minimized Windows*), never window contents.
+  - **Reminders:** incomplete reminders from every list, through EventKit. A reminder changes only when you click its circle to complete it.
+  - **Codex:** token counts, model and plan limits from OpenAI Codex's session files in `~/.codex/sessions` (and `archived_sessions`), never the messages.
+  - **Now Playing** also reads the current track's album artwork from Music. Spotify keeps its app icon, since its artwork is a web URL.
+- **Accessibility** is used only to move, resize, minimize, restore and raise windows, and to be notified when windows move or minimize. It reads window frames and titles (the titles are shown in *Minimized Windows*), never window contents. It also reads the macOS Dock's items for their notification badges, and, when you right-click an app, opens that app's menu in the macOS Dock for a moment to read its items.
 - **Global input:** to animate minimizes and close popovers, Kosmodock observes mouse clicks system-wide and checks key presses for exactly two keys, ⌘M and Escape. Nothing is logged or stored.
 - **The native Dock:** *Hide the native macOS Dock* changes four `com.apple.dock` preferences and restores your original values whenever Kosmodock quits or crashes (see [Native Dock suppression & recovery](#native-dock-suppression--recovery)). To restore them by hand: `defaults delete com.apple.dock autohide-delay; defaults write com.apple.dock autohide -bool false; killall Dock`.
 - Your settings live in `~/.config/kosmodock/config.json`.
@@ -99,7 +102,7 @@ swift build && .build/debug/Kosmodock --render-snapshots /tmp/kosmodock-snaps
 
 Accessibility is the **only** permission Kosmodock needs (System Settings → Privacy & Security → Accessibility). Tiling, keeping windows above the dock, and minimize-into-group all depend on it. Kosmodock asks once at launch; the popover, Settings → Permissions and the menu also have a *Grant Access* button. Screen Recording and Input Monitoring are not used.
 
-Two widgets ask for their own permission the first time they need it: **Now Playing** (Automation, to control Music or Spotify) and **Calendar** (Calendars, read-only). Without them, the rest of Kosmodock works as before.
+Three widgets ask for their own permission the first time they need it: **Now Playing** (Automation, to control Music or Spotify), **Calendar** (Calendars, read-only) and **Reminders** (Reminders). Without them, the rest of Kosmodock works as before.
 
 macOS ties the grant to the app's code signature. An ad-hoc signature (`codesign -s -`) changes on every build, so after a rebuild the switch in System Settings still looks on but belongs to the previous build. `scripts/setup-signing.sh` creates a self-signed **Kosmodock Local Signing** certificate in your login keychain, and `bundle.sh` uses it automatically. The identity then stays the same across builds, and so does the grant. `bash scripts/setup-signing.sh --remove` deletes it. Downloaded releases use a different certificate, so macOS treats a release and your own build as different apps: switching between them means granting Accessibility again.
 
@@ -127,11 +130,23 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
 - **Windows never sit behind the dock.** With *Reserve screen space* on (the default), an Accessibility observer watches every app. When a window reaches into the dock's band, it is moved up, or shrunk if it's taller than the work area. Tiling presets use the same work area. Turn the option off to get **Intellihide**: the dock slides below the screen edge while a window overlaps it, and comes back when the pointer touches the bottom edge.
 - **Minimize into groups.** Minimizing a window plays a card animation from the window into its group's capsule, and the capsule bounces. The minimize can come from the yellow button, ⌘M, *Minimize to Group* in the menu, or clicking the frontmost app's icon. The capsule shows a counter, and the group's popover lists *Minimized Windows*; clicking one plays the reverse animation and restores it. Clicking an app whose windows are all minimized restores the most recent one.
 - **Arrange the dock** in Settings → Dock: groups, single apps (a plain icon, like the Finder in the macOS Dock) and widgets go in any order. Drag them, or use *New Group*, *Add App* and *Add Widget* there. A single app's windows minimize into its icon.
+- **Workspaces** give each thing you do its own Dock (Settings → Workspaces). Each holds its own groups, apps and widgets, and decides what happens to the other workspaces' apps when you switch: hide them (back when you return), quit them, or leave them.
+  - Switch with ⌃⌥1…9, a two-finger swipe or ⌘ + scroll over the dock, the colored dots at its leading edge, or the menu.
+  - A new workspace starts as a copy of the current Dock.
+- **Notification badges** (unread counts and dots) show on app icons, read from the macOS Dock, which keeps running while hidden.
+- **Right-click an app** to get the items it puts in its own Dock menu (New Window, its window list, bookmarks…) before Kosmodock's actions. Kosmodock reads them by opening that app's menu in the hidden macOS Dock for a moment, so the menu takes about a tenth of a second longer.
 - **Widgets** are tiles on the dock, square (one reading) or wide (a reading and its details). Clicking one opens its details. Set them up in Settings → Widgets.
   - **System:** Clock (with a month calendar), Battery, CPU & Memory, Network.
-  - **Apps:** Claude Code (tokens, and your plan's 5-hour and weekly limits once its status line is set up), Now Playing (Music or Spotify, with controls), Calendar (the next event, today and tomorrow), GitHub (your open pull requests and the ones waiting for your review, through `gh`).
+  - **Apps:**
+    - Claude Code: tokens, and your plan's 5-hour and weekly limits once its status line is set up.
+    - Codex: tokens and plan limits, from Codex's own session files.
+    - Now Playing: Music or Spotify, with controls and Music's album artwork.
+    - Calendar: the next event, today and tomorrow.
+    - Reminders: what's due, ticked off with a click.
+    - GitHub: your open pull requests and the ones waiting for your review, through `gh`.
   - **Your own:** Command runs a shell command and shows its first line, or draws the tile from a JSON object it prints (see [Configuration](#configuration)).
-- **Styles and effects** live in Settings → Appearance. Pick one of six styles (Glass, Midnight, Graphite, Neon, Paper, Floating) and fine-tune its colors, border, glow and corners. Choose the hover effect (none, scale, or macOS-style magnification), the launch animation (bounce, pulse, shake) and the running-app indicator (dot, line or hidden, in the accent or group color).
+- **Styles and effects** live in Settings → Appearance. Pick one of six styles (Glass, Midnight, Graphite, Neon, Paper, Floating) and fine-tune its colors, gradient angle, border, glow, corners and reflections under the icons. Each style keeps its own edits when you switch to another and back. Choose the hover effect (none, scale, or macOS-style magnification), the launch animation (bounce, pulse, shake) and the running-app indicator (dot, line or hidden, in the accent or group color).
+- **Backups:** `config.json` is copied to `~/.config/kosmodock/backups/` at launch and quit (unchanged copies skipped, the 20 newest kept). Settings → Config File restores one after backing up the current config.
 - The dock **adapts to screen width**. Every capsule takes the widest one's width while it fits, wide widgets turn square, and then the dock steps down from full labels to a compact layout (icons over badge), then status dots, and finally scrolls.
 
 ## Configuration
@@ -146,8 +161,10 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
       "blur": true, "material": "hudWindow",           // hudWindow|popover|menu|sidebar|underWindowBackground|fullScreenUI
       "fillTopHex": null, "fillBottomHex": null,       // null = the window background, following light/dark mode
       "fillOpacity": 0.35, "borderHex": "#FFFFFF", "borderOpacity": 0.6, "borderWidth": 1,
-      "glowHex": "#FFFFFF", "glowOpacity": 0, "sheen": true, "cornerRadius": 22
+      "glowHex": "#FFFFFF", "glowOpacity": 0, "sheen": true, "cornerRadius": 22,
+      "fillAngle": 0, "reflection": false              // degrees clockwise from top-to-bottom; mirror under icons
     },
+    "customizations": {},                              // edits of the styles that aren't selected, by style
     "iconSize": 34, "dockMargin": 10, "tileGap": 8,
     "dockClearance": 5,                                // gap between windows and the top of the dock
     "springResponse": 0.32, "springDamping": 0.78,     // lower response = stiffer
@@ -160,7 +177,8 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
     "expansionMode": "bento", "suppressNativeDock": false, "focusMode": false, "showMenuBarIcon": true,
     "reserveScreenSpace": true,          // false = Intellihide
     "minimizeToGroups": true, "clickActiveAppToMinimize": true,
-    "screenSpaceExclusions": ["com.example.SomeGame"]   // never moved/resized by the enforcer
+    "screenSpaceExclusions": ["com.example.SomeGame"],  // never moved/resized by the enforcer
+    "showsNotificationBadges": true, "showsAppDockMenu": true
   },
   "telemetry": { "pollInterval": 3, "containerRuntime": "podman", "runtimePath": null, "fallbackToDocker": true, "commandTimeout": 10 },
   "groups": [
@@ -189,12 +207,18 @@ log show --last 5m --info --predicate 'subsystem == "dev.kosmodock.Kosmodock"'
   ],
   "tiles": [
     { "kind": "clock", "width": "wide", "showsSeconds": false },
-    // clock|battery|activity|network|claudeCode|nowPlaying|calendar|github|command
+    // clock|battery|activity|network|claudeCode|codex|nowPlaying|calendar|reminders|github|command
     { "kind": "battery", "width": "square" },                       // square|wide
     { "kind": "command", "label": "Build", "command": "make -q && echo ok", "interval": 30 }
   ],
   "pinnedApps": [ { "name": "Finder", "bundleId": "com.apple.finder" } ],   // single apps, as plain icons
-  "order": ["app:com.apple.finder", "backend", "tile:clock"]  // group ids, app:<bundleId|path>, tile:<id>; the rest follows
+  "order": ["app:com.apple.finder", "backend", "tile:clock"], // group ids, app:<bundleId|path>, tile:<id>; the rest follows
+  // Optional: a Dock for each thing you do. With workspaces, the active one's items replace `order`.
+  "workspaces": [
+    { "id": "work", "name": "Work", "colorHex": "#4C8DFF",
+      "items": ["app:com.apple.finder", "backend", "tile:clock"], "otherApps": "hide" }   // keep|hide|quit
+  ],
+  "activeWorkspaceID": "work"
 }
 ```
 

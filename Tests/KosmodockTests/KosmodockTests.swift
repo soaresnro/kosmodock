@@ -138,6 +138,8 @@ final class ConfigDecodingTests: XCTestCase {
         XCTAssertFalse(config.theme.isCustomized, "the example shows the glass style's own values")
         XCTAssertEqual(config.tiles.map(\.kind), [.clock, .battery, .command])
         XCTAssertEqual(config.groups.count, 2)
+        XCTAssertEqual(config.workspaces.map(\.id), ["work"])
+        XCTAssertEqual(config.barOrder, ["app:com.apple.finder", "backend", "tile:clock"], "the active workspace's items")
     }
 
     func testDefaultConfigUsesInstalledApps() {
