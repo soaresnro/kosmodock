@@ -31,6 +31,8 @@ enum SnapshotRenderer {
             language = requested
             L10n.setLanguage(requested)
         }
+        // Utility widgets never read the pasteboard, call the network or save here.
+        model.utilities.isPreview = true
         // The config's tiles, or one of each kind, sampled before rendering.
         let tiles = model.config.tiles
         model.configService.preview { config in
@@ -41,6 +43,7 @@ enum SnapshotRenderer {
                 return tile
             }
         }
+        model.utilities.update(tiles: model.config.tiles)
         model.telemetry.start()
         model.containers.setEnabled(true)
         // Folder stacks, kept off UserDefaults: what arrived today is new.
@@ -63,6 +66,9 @@ enum SnapshotRenderer {
             for index in config.tiles.indices { config.tiles[index].width = .square }
         }
         write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock-tiles-square", in: directory)
+        for preview in UtilityWidgetPreviews.views(model: model) {
+            write(preview.view, model: model, proposed: nil, name: preview.name, in: directory)
+        }
         model.configService.preview { $0.tiles = tiles }
         write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock", in: directory)
         let folders = model.config.folders

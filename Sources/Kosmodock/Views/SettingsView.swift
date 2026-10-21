@@ -736,6 +736,8 @@ private struct TileEditorSection: View {
                 FileWidgetEditor(tile: tile)
             case .pet:
                 PetTileOptions(tile: tile)
+            case .note, .water, .converter, .emoji, .colorPicker, .clipboard, .weather:
+                UtilityTileOptions(tile: tile)
             case .battery, .activity, .network:
                 EmptyView()
             }

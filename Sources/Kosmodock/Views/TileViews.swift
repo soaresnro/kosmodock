@@ -27,6 +27,7 @@ struct TileView: View {
             .frame(minHeight: unit, maxHeight: .infinity)
             .background {
                 shape.fill(Color.primary.opacity(isHighlighted ? 0.16 : (isHovering ? 0.12 : 0.07)))
+                UtilityTileBackground(tile: tile, shape: shape)
             }
             .overlay {
                 shape.strokeBorder(Color.primary.opacity(isHighlighted ? 0.32 : 0.1), lineWidth: 0.5)
@@ -83,6 +84,7 @@ private struct TileContent: View {
         case .timeProgress: TimeProgressTile(tile: tile, isWide: isWide)
         case .screenshots, .shelf, .files, .bookmarks, .appCollection, .shortcut, .airDrop: FileWidgetTile(tile: tile, isWide: isWide)
         case .pet: PetTileContent(tile: tile, isWide: isWide)
+        case .note, .water, .converter, .emoji, .colorPicker, .clipboard, .weather: UtilityTile(tile: tile, isWide: isWide)
         case .command: CommandTile(tile: tile, isWide: isWide)
         }
     }
@@ -389,6 +391,7 @@ struct TilePopoverView: View {
                 case .timeProgress: TimeProgressDetails(tile: tile)
                 case .screenshots, .shelf, .files, .bookmarks, .appCollection, .shortcut, .airDrop: FileWidgetDetails(tile: tile)
                 case .pet: PetDetails(tile: tile)
+                case .note, .water, .converter, .emoji, .colorPicker, .clipboard, .weather: UtilityDetails(tile: tile)
                 case .command: CommandDetails(tile: tile)
                 }
             }

@@ -105,7 +105,7 @@ struct TileContextMenu: View {
         if tile.kind == .pet {
             Button("Put Out Food") { model.pets.feed(tileID: tile.id) }
         }
-        Button("Show Details") { model.tap(tile) }
+        Button("Show Details") { model.showDetails(tile) }
         Button("Edit Widgets…") { model.openSettings(.tiles) }
         Divider()
         if let stack = config.stack(containing: tile.id) {

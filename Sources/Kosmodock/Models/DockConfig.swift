@@ -417,6 +417,14 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case airDrop
     // Looks
     case pet
+    // Utility widgets
+    case note
+    case water
+    case converter
+    case emoji
+    case colorPicker
+    case clipboard
+    case weather
     case command
 
     var id: String { rawValue }
@@ -447,6 +455,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .shortcut: L10n.tr("Shortcut")
         case .airDrop: "AirDrop"
         case .pet: L10n.tr("Pet")
+        case .note, .water, .converter, .emoji, .colorPicker, .clipboard, .weather: utilityTitle
         case .command: L10n.tr("Command")
         }
     }
@@ -477,6 +486,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .shortcut: "square.3.layers.3d"
         case .airDrop: "dot.radiowaves.left.and.right"
         case .pet: "pawprint.fill"
+        case .note, .water, .converter, .emoji, .colorPicker, .clipboard, .weather: utilitySymbol
         case .command: "terminal"
         }
     }
@@ -490,6 +500,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case apps
         /// Files on this Mac, and sending them.
         case files
+        /// Small tools: notes, converters, pickers.
+        case utilities
         /// Your own: a script, links, apps or a shortcut.
         case custom
 
@@ -499,6 +511,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
             case .time: L10n.tr("Time")
             case .apps: L10n.tr("Apps")
             case .files: L10n.tr("Files & Sharing")
+            case .utilities: L10n.tr("Utilities")
             case .custom: L10n.tr("Custom")
             }
         }
@@ -513,6 +526,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .claudeCode, .nowPlaying, .calendar, .github, .codex, .reminders: .apps
         case .screenshots, .shelf, .files, .airDrop: .files
         case .bookmarks, .appCollection, .shortcut: .custom
+        case .note, .water, .converter, .emoji, .colorPicker, .clipboard, .weather: .utilities
         case .command: .custom
         }
     }
@@ -582,6 +596,13 @@ struct DockTile: Codable, Equatable, Identifiable, Sendable {
     var shortcutTintHex: String?
     /// Pet: its animal and how it behaves (`petOptions`).
     var pet: PetOptions?
+    // Utility widgets' options (UtilityWidgetServices.swift); nil means the defaults.
+    var note: NoteOptions?
+    var water: WaterOptions?
+    var emoji: EmojiOptions?
+    var colors: ColorPickerOptions?
+    var clipboard: ClipboardOptions?
+    var weather: WeatherOptions?
 }
 
 /// Interface language. `system` follows macOS (English when unsupported).
@@ -1129,6 +1150,12 @@ extension DockTile {
         shortcutSymbol = try c.decodeIfPresent(String.self, forKey: .shortcutSymbol)
         shortcutTintHex = try c.decodeIfPresent(String.self, forKey: .shortcutTintHex)
         pet = try c.decodeIfPresent(PetOptions.self, forKey: .pet)
+        note = try c.decodeIfPresent(NoteOptions.self, forKey: .note)
+        water = try c.decodeIfPresent(WaterOptions.self, forKey: .water)
+        emoji = try c.decodeIfPresent(EmojiOptions.self, forKey: .emoji)
+        colors = try c.decodeIfPresent(ColorPickerOptions.self, forKey: .colors)
+        clipboard = try c.decodeIfPresent(ClipboardOptions.self, forKey: .clipboard)
+        weather = try c.decodeIfPresent(WeatherOptions.self, forKey: .weather)
     }
 }
 

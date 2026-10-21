@@ -52,6 +52,8 @@ final class AppModel {
     let timeWidgets: TimeWidgetService
     /// Screenshots, files and shortcut tiles (FileWidgetServices.swift).
     let fileWidgets = FileWidgetService()
+    /// Notes, water, converter, emoji, colors, clipboard and weather.
+    let utilities = UtilityWidgets()
     let windows: WindowManagerService
     let systemDock: SystemDockManager
     let axHub: AXObserverHub
@@ -145,6 +147,7 @@ final class AppModel {
         }
         timeWidgets.stop()
         fileWidgets.stopAll()
+        utilities.stop()
         axHub.stop()
         dockBadges.setActive(false)
         stopDockItems()
@@ -277,6 +280,12 @@ final class AppModel {
     }
 
     func tap(_ tile: DockTile) {
+        // The color picker's click samples the screen; its details open after a pick.
+        if tile.kind == .colorPicker { return sampleColor(tile) }
+        showDetails(tile)
+    }
+
+    func showDetails(_ tile: DockTile) {
         presentPopover?(DockConfig.itemID(for: tile))
     }
 
@@ -426,7 +435,7 @@ final class AppModel {
             case .codex: Task { await codex.refresh() }
             case .reminders: reminders.refresh()
             case .screenshots, .files: fileWidgets.rescan(tileID: tile.id)
-            default: break
+            default: utilities.detailsDidOpen(tile)
             }
             return
         }
@@ -703,6 +712,7 @@ final class AppModel {
         timeWidgets.setTiles(config.tiles)
         fileWidgets.update(tiles: config.tiles)
         pets.setEnabled(kinds.contains(.pet))
+        utilities.update(tiles: config.tiles)
     }
 
     private func configDidChange(from old: DockConfig, to new: DockConfig) {
