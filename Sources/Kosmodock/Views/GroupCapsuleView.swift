@@ -9,11 +9,13 @@ struct GroupCapsuleView: View {
     var density: DockDensity = .regular
     /// Tells apart `ViewThatFits` candidates with the same density.
     var variant = 0
+    /// Fewer mini icons than the density shows.
+    var maxMiniIcons: Int?
     let namespace: Namespace.ID
     @ViewState private var isHovering = false
     @ViewState private var isPulsing = false
 
-    private var miniIconLimit: Int { density.miniIconLimit }
+    private var miniIconLimit: Int { maxMiniIcons ?? density.miniIconLimit }
     private var showsLabel: Bool { density == .regular && model.theme.showGroupLabels }
 
     private var isExpanded: Bool { model.expandedGroupID == group.id }
