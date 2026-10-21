@@ -2,9 +2,9 @@
 
 "NSAccessibilityUsageDescription" = "Kosmodock usa la Accesibilidad para mover y redimensionar las ventanas de tus grupos de apps y organizarlas con un clic.";
 "NSAppleEventsUsageDescription" = "Kosmodock controla Música y Spotify solo para el widget Reproduciendo: lee la pista actual y reproduce, pausa o salta. Pide al Finder que vacíe la Papelera solo cuando eliges Vaciar Papelera.";
-"NSDesktopFolderUsageDescription" = "Kosmodock lista los archivos de esta carpeta solo para las carpetas que pones en el Dock.";
-"NSDocumentsFolderUsageDescription" = "Kosmodock lista los archivos de esta carpeta solo para las carpetas que pones en el Dock.";
-"NSDownloadsFolderUsageDescription" = "Kosmodock lista los archivos de esta carpeta solo para las carpetas que pones en el Dock.";
+"NSDesktopFolderUsageDescription" = "Kosmodock muestra los archivos del escritorio solo para las carpetas que pones en el Dock, los widgets Capturas de pantalla y Archivos recientes y el estante. Solo modifica un archivo cuando eliges Trasladar a la Papelera.";
+"NSDocumentsFolderUsageDescription" = "Kosmodock muestra archivos de Documentos solo para las carpetas que pones en el Dock, el widget Archivos recientes y el estante. Solo modifica un archivo cuando eliges Trasladar a la Papelera.";
+"NSDownloadsFolderUsageDescription" = "Kosmodock muestra tus descargas solo para las carpetas que pones en el Dock, como Descargas, y el widget Archivos recientes. Solo modifica un archivo cuando eliges Trasladar a la Papelera.";
 "NSCalendarsFullAccessUsageDescription" = "Kosmodock lee tus calendarios solo para el widget Calendario, para mostrar los eventos de hoy y de mañana. Nunca los modifica.";
 "NSCalendarsUsageDescription" = "Kosmodock lee tus calendarios solo para el widget Calendario, para mostrar los eventos de hoy y de mañana. Nunca los modifica.";
 "NSRemindersFullAccessUsageDescription" = "Kosmodock lee tus recordatorios solo para el widget Recordatorios, para mostrar lo que vence. Solo cambia uno cuando lo marcas como completado ahí.";

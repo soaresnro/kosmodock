@@ -101,11 +101,11 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>NSAppleEventsUsageDescription</key>
     <string>Kosmodock controls Music and Spotify only for the Now Playing widget: it reads the current track and plays, pauses or skips. It asks the Finder to empty the Trash only when you choose Empty Trash.</string>
     <key>NSDesktopFolderUsageDescription</key>
-    <string>Kosmodock lists this folder's files only for the folder stacks you put on the Dock.</string>
+    <string>Kosmodock lists files on the Desktop only for the folder stacks you put on the Dock, the Screenshots and Recent Files widgets and the Shelf. It changes a file only when you choose Move to Trash.</string>
     <key>NSDocumentsFolderUsageDescription</key>
-    <string>Kosmodock lists this folder's files only for the folder stacks you put on the Dock.</string>
+    <string>Kosmodock lists files in Documents only for the folder stacks you put on the Dock, the Recent Files widget and the Shelf. It changes a file only when you choose Move to Trash.</string>
     <key>NSDownloadsFolderUsageDescription</key>
-    <string>Kosmodock lists this folder's files only for the folder stacks you put on the Dock.</string>
+    <string>Kosmodock lists your downloads only for the folder stacks you put on the Dock, such as Downloads, and the Recent Files widget. It changes a file only when you choose Move to Trash.</string>
     <key>NSCalendarsFullAccessUsageDescription</key>
     <string>Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.</string>
     <key>NSCalendarsUsageDescription</key>

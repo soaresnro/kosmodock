@@ -75,6 +75,7 @@ final class DockController {
     private var stackScroll: WidgetStackScrollMonitor?
     private var windowPreviews: WindowPreviewController?
     private var keyboardFocus: DockKeyboardFocusController?
+    private var dropZone: DropZoneController?
 
     private var hasPlacedDock = false
     private var lastWorkArea: SafeWorkArea?
@@ -116,6 +117,7 @@ final class DockController {
         windowPreviews?.onShowingChange = { [weak self] in self?.intellihide.evaluate() }
         keyboardFocus = DockKeyboardFocusController(panel: dockPanel, model: model)
         keyboardFocus?.onActiveChange = { [weak self] in self?.intellihide.evaluate() }
+        dropZone = DropZoneController(model: model)
 
         let center = NotificationCenter.default
         tokens.append(center.addObserver(forName: NSApplication.didChangeScreenParametersNotification, object: nil, queue: .main) { [weak self] _ in

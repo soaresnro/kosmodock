@@ -33,12 +33,13 @@ struct TileView: View {
             }
             .modifier(FloatingGlass(cornerRadius: radius))
             .contentShape(shape)
-            .onTapGesture { model.tap(tile) }
+            .fileWidgetDropTarget(tile)
+            .onTapGesture { model.activate(tile) }
             // One button for VoiceOver, reading the tile's name and its text.
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(tile.title)
-            .accessibilityAction { model.tap(tile) }
+            .accessibilityAction { model.activate(tile) }
             .onHover { hovering in
                 withAnimation(.easeOut(duration: 0.15)) { isHovering = hovering }
             }
@@ -49,10 +50,11 @@ struct TileView: View {
 }
 
 extension DockTile {
-    /// A command tile's label, or the kind's name.
+    /// A command tile's label, a shortcut's name, or the kind's name.
     var title: String {
         if kind == .command, let label, !label.isBlank { return L10n.configText(label) }
         if let title = timeTitle { return title }
+        if kind == .shortcut, let shortcutName, !shortcutName.isBlank { return shortcutName }
         return kind.title
     }
 }
@@ -79,6 +81,7 @@ private struct TileContent: View {
         case .countdown: CountdownTile(tile: tile, isWide: isWide)
         case .stopwatch: StopwatchTile(tile: tile, isWide: isWide)
         case .timeProgress: TimeProgressTile(tile: tile, isWide: isWide)
+        case .screenshots, .shelf, .files, .bookmarks, .appCollection, .shortcut, .airDrop: FileWidgetTile(tile: tile, isWide: isWide)
         case .command: CommandTile(tile: tile, isWide: isWide)
         }
     }
@@ -383,6 +386,7 @@ struct TilePopoverView: View {
                 case .countdown: CountdownDetails(tile: tile)
                 case .stopwatch: StopwatchDetails(tile: tile)
                 case .timeProgress: TimeProgressDetails(tile: tile)
+                case .screenshots, .shelf, .files, .bookmarks, .appCollection, .shortcut, .airDrop: FileWidgetDetails(tile: tile)
                 case .command: CommandDetails(tile: tile)
                 }
             }

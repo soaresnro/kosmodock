@@ -25,6 +25,8 @@ enum SnapshotRenderer {
 
     static func run(model: AppModel, to directory: URL) async {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        // UserDefaults ignores CFFIXED_USER_HOME: keep the snapshot's state in memory.
+        model.fileWidgets.persistsSeenDates = false
         if let requested = requestedLanguage {
             language = requested
             L10n.setLanguage(requested)
@@ -45,6 +47,7 @@ enum SnapshotRenderer {
         model.folderStacks.seen = FolderSeenStore(defaults: nil)
         for folder in model.config.folders { model.folderStacks.seen.markSeen(folder.id, at: Date().addingTimeInterval(-86_400)) }
         model.startDockItems()
+        model.fileWidgets.update(tiles: model.config.tiles)
         try? await Task.sleep(for: .seconds(7))
 
         injectSampleMinimizedWindows(into: model)
@@ -94,6 +97,7 @@ enum SnapshotRenderer {
         for group in model.config.groups {
             write(BentoPopoverView(groupID: group.id).fixedSize(), model: model, proposed: nil, name: "popover-\(group.id)", in: directory)
         }
+        write(DropZoneTrayView(state: DropZoneState()), model: model, proposed: nil, name: "drop-zone", in: directory)
 
         if let first = model.config.groups.first {
             model.expandedGroupID = first.id

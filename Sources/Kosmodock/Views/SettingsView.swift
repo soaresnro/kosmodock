@@ -732,6 +732,8 @@ private struct TileEditorSection: View {
                 StopwatchSettingsRows()
             case .timeProgress:
                 TimeProgressSettingsRows(tile: tile)
+            case .screenshots, .shelf, .files, .bookmarks, .appCollection, .shortcut, .airDrop:
+                FileWidgetEditor(tile: tile)
             case .battery, .activity, .network:
                 EmptyView()
             }
@@ -1146,6 +1148,7 @@ private struct BehaviorSettingsView: View {
             }
             WindowPreviewSettingsSection()
             DockKeyboardFocusSettingsSection()
+            DropZoneSettingsSection()
             Section {
                 Toggle(isOn: model.binding(\.behavior.suppressNativeDock)) {
                     Text("Hide the native macOS Dock while Kosmodock runs")
