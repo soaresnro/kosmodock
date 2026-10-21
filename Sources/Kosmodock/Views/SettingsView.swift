@@ -753,7 +753,7 @@ private struct AppearanceSettingsView: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button(L10n.tr("Restore %@", model.theme.style.title)) {
-                        model.configService.update { $0.theme.apply($0.theme.style) }
+                        model.configService.update { $0.theme.restore() }
                     }
                     .disabled(!model.theme.isCustomized)
                 }
@@ -828,6 +828,7 @@ private struct AppearanceSettingsView: View {
             if surface.fillTopHex != nil {
                 ColorPicker("Top color", selection: colorBinding(\.fillTopHex), supportsOpacity: false)
                 ColorPicker("Bottom color", selection: colorBinding(\.fillBottomHex), supportsOpacity: false)
+                SliderRow(title: L10n.tr("Gradient angle"), value: surfaceBinding(\.fillAngle), range: 0...360, step: 15, format: Self.degrees)
                 SliderRow(title: L10n.tr("Fill opacity"), value: surfaceBinding(\.fillOpacity), range: 0...1, format: Self.percent)
             } else {
                 SliderRow(title: L10n.tr("Glass tint"), value: surfaceBinding(\.fillOpacity), range: 0...1, format: Self.percent)
@@ -840,6 +841,7 @@ private struct AppearanceSettingsView: View {
             Toggle("Top highlight", isOn: surfaceBinding(\.sheen))
         }
         SliderRow(title: L10n.tr("Corner radius"), value: surfaceBinding(\.cornerRadius), range: 6...40, step: 1, format: Self.points)
+        Toggle("Reflections under icons", isOn: surfaceBinding(\.reflection))
     }
 
     private func surfaceBinding<Value: Sendable>(_ keyPath: WritableKeyPath<DockSurface, Value>) -> Binding<Value> {
@@ -870,6 +872,7 @@ private struct AppearanceSettingsView: View {
     static func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
     static func points(_ value: Double) -> String { "\(Int(value.rounded())) pt" }
     static func fractionalPoints(_ value: Double) -> String { String(format: "%.1f pt", locale: L10n.locale, value) }
+    static func degrees(_ value: Double) -> String { "\(Int(value.rounded()))°" }
 }
 
 /// Kosmodock's own icon with the chosen effects: hover it, or play the launch.
@@ -929,7 +932,7 @@ private struct DockStylePicker: View {
                     model.configService.update { $0.theme.apply(style) }
                 } label: {
                     VStack(spacing: 6) {
-                        DockStylePreview(surface: isSelected ? model.theme.surface : style.surface, accent: model.accent)
+                        DockStylePreview(surface: model.theme.surface(for: style), accent: model.accent)
                             .overlay {
                                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                                     .strokeBorder(isSelected ? model.accent : Color.primary.opacity(0.12), lineWidth: isSelected ? 2 : 1)
@@ -937,7 +940,7 @@ private struct DockStylePicker: View {
                         HStack(spacing: 4) {
                             Text(style.title)
                                 .font(.system(size: 11.5, weight: isSelected ? .semibold : .regular))
-                            if isSelected, model.theme.isCustomized {
+                            if model.theme.isCustomized(style) {
                                 Text("Customized")
                                     .font(.system(size: 9.5, weight: .medium))
                                     .foregroundStyle(.secondary)
@@ -970,9 +973,13 @@ struct DockStylePreview: View {
             RadialGradient(colors: [Color.orange.opacity(0.35), .clear], center: .topTrailing, startRadius: 4, endRadius: 90)
             HStack(spacing: 5) {
                 ForEach(Array([accent, .orange, .teal, .pink].enumerated()), id: \.offset) { _, color in
-                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    let icon = RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(color.gradient)
                         .frame(width: 15, height: 15)
+                    icon
+                        .background(alignment: .bottom) {
+                            if surface.reflection { Reflection(height: 15) { icon } }
+                        }
                         .background {
                             if !surface.isVisible {
                                 SurfaceBackground(surface: DockStyle.glass.surface, cornerRadius: 6, blending: .withinWindow, scale: 0.25)
@@ -1243,6 +1250,7 @@ private struct PermissionsSettingsView: View {
 private struct ConfigFileSettingsView: View {
     @Environment(AppModel.self) private var model
     @ViewState private var confirmReset = false
+    @ViewState private var pendingRestore: ConfigBackup?
 
     var body: some View {
         let service = model.configService
@@ -1273,17 +1281,70 @@ private struct ConfigFileSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section {
+                if service.backups.isEmpty {
+                    Text("No backups yet.").foregroundStyle(.secondary)
+                }
+                ForEach(service.backups) { backup in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(verbatim: Self.dateText(backup.date))
+                            TimelineView(.everyMinute) { context in
+                                Text(verbatim: Self.relativeText(backup.date, now: context.date))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button("Restore…") { pendingRestore = backup }
+                        Button {
+                            service.revealInFinder(backup)
+                        } label: {
+                            Image(systemName: "folder")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Show in Finder")
+                    }
+                }
+            } header: {
+                Text("Backups")
+            } footer: {
+                Text(L10n.tr("Kosmodock copies config.json into the backups folder next to it at every launch and quit, unless nothing changed. The %lld newest copies are kept.", ConfigBackupStore.defaultLimit))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("Reset") {
                 Button("Regenerate from Installed Apps…", role: .destructive) { confirmReset = true }
             }
         }
         .formStyle(.grouped)
         .navigationTitle("Config File")
+        .onAppear { service.refreshBackups() }
         .confirmationDialog("Replace your configuration?", isPresented: $confirmReset) {
             Button("Regenerate", role: .destructive) { service.resetToDefaults() }
         } message: {
             Text("Groups are rebuilt by scanning /Applications. Your current groups and theme are overwritten.")
         }
+        .confirmationDialog(
+            pendingRestore.map { L10n.tr("Restore the backup from %@?", Self.dateText($0.date)) } ?? "",
+            isPresented: Binding(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } }),
+            presenting: pendingRestore
+        ) { backup in
+            Button("Restore", role: .destructive) { service.restore(backup) }
+        } message: { _ in
+            Text("Your current config.json is backed up first, so you can go back to it.")
+        }
+    }
+
+    private static func dateText(_ date: Date) -> String {
+        date.formatted(Date.FormatStyle(date: .abbreviated, time: .standard).locale(L10n.locale))
+    }
+
+    private static func relativeText(_ date: Date, now: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = L10n.locale
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: now)
     }
 }
 

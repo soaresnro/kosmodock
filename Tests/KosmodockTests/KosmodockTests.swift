@@ -643,7 +643,7 @@ final class ThemeStyleTests: XCTestCase {
         XCTAssertFalse(theme.isCustomized)
         theme.surface.borderWidth = 2.5
         XCTAssertTrue(theme.isCustomized)
-        theme.apply(theme.style)
+        theme.restore()
         XCTAssertEqual(theme.surface, DockStyle.paper.surface)
     }
 

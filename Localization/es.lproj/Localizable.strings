@@ -439,3 +439,16 @@
 "Notifications" = "Notificaciones";
 "Show notification badges" = "Mostrar globos de notificación";
 "Unread counts and dots on app icons, read from the macOS Dock, which keeps running while hidden. Needs Accessibility access." = "Contadores de no leídos y puntos en los iconos de las apps, leídos del Dock de macOS, que sigue funcionando aunque esté oculto. Necesita acceso de Accesibilidad.";
+
+/* Theme & backups */
+"Backups" = "Copias de seguridad";
+"Could not back up config.json: %@" = "No se ha podido hacer una copia de seguridad de config.json: %@";
+"Could not restore %@: %@" = "No se ha podido restaurar %@: %@";
+"Gradient angle" = "Ángulo del degradado";
+"Kosmodock copies config.json into the backups folder next to it at every launch and quit, unless nothing changed. The %lld newest copies are kept." = "Kosmodock copia config.json en la carpeta backups, junto a él, cada vez que se abre y se cierra, salvo que no haya cambiado nada. Se conservan las %lld copias más recientes.";
+"No backups yet." = "Aún no hay copias de seguridad.";
+"Reflections under icons" = "Reflejos bajo los iconos";
+"Restore" = "Restaurar";
+"Restore the backup from %@?" = "¿Restaurar la copia de seguridad del %@?";
+"Restore…" = "Restaurar…";
+"Your current config.json is backed up first, so you can go back to it." = "Antes se hace una copia de seguridad de tu config.json actual, para que puedas volver a él.";

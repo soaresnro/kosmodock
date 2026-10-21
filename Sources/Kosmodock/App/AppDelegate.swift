@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let configService = ConfigService()
         configService.bootstrap()
+        configService.backUp()
 
         let model = AppModel(configService: configService)
         self.model = model

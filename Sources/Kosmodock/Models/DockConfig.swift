@@ -152,7 +152,7 @@ enum AppearanceMode: String, Codable, CaseIterable, Identifiable, Sendable {
 
 /// A ready-made look for the dock bar. Picking one copies its `surface` into
 /// the theme; editing those values customizes it, and restoring the style
-/// copies them back.
+/// copies them back. Each style keeps its own edits (`ThemeConfig.customizations`).
 enum DockStyle: String, Codable, CaseIterable, Identifiable, Sendable {
     case glass
     case midnight
@@ -198,7 +198,7 @@ enum DockStyle: String, Codable, CaseIterable, Identifiable, Sendable {
             DockSurface(
                 fillTopHex: "#3A3F4B", fillBottomHex: "#0E1014", fillOpacity: 0.86,
                 borderHex: "#8FB6FF", borderOpacity: 0.55, specularBorder: false,
-                glowHex: "#4C8DFF", glowOpacity: 0.55, cornerRadius: 12
+                glowHex: "#4C8DFF", glowOpacity: 0.55, cornerRadius: 12, reflection: true
             )
         case .neon:
             DockSurface(
@@ -213,7 +213,7 @@ enum DockStyle: String, Codable, CaseIterable, Identifiable, Sendable {
                 sheen: false, cornerRadius: 14
             )
         case .floating:
-            DockSurface(blur: false, fillOpacity: 0, borderOpacity: 0, borderWidth: 0, sheen: false)
+            DockSurface(blur: false, fillOpacity: 0, borderOpacity: 0, borderWidth: 0, sheen: false, reflection: true)
         }
     }
 }
@@ -227,6 +227,8 @@ struct DockSurface: Codable, Equatable, Sendable {
     /// which follows light and dark mode.
     var fillTopHex: String?
     var fillBottomHex: String?
+    /// Turns the fill's direction clockwise, in degrees; 0 runs top to bottom.
+    var fillAngle = 0.0
     /// Opacity of the fill over the blur (0 = pure glass, 1 = solid).
     var fillOpacity = 0.35
     var borderHex = "#FFFFFF"
@@ -240,11 +242,13 @@ struct DockSurface: Codable, Equatable, Sendable {
     /// Soft highlight across the top half.
     var sheen = true
     var cornerRadius = 22.0
+    /// A faded mirror image under each app icon on the dock.
+    var reflection = false
 
     // Declared because both coding directions are hand-written (see the extension).
     enum CodingKeys: String, CodingKey {
-        case blur, material, fillTopHex, fillBottomHex, fillOpacity, borderHex, borderOpacity
-        case borderWidth, specularBorder, glowHex, glowOpacity, sheen, cornerRadius
+        case blur, material, fillTopHex, fillBottomHex, fillAngle, fillOpacity, borderHex, borderOpacity
+        case borderWidth, specularBorder, glowHex, glowOpacity, sheen, cornerRadius, reflection
     }
 
     /// Whether there's a bar at all. Without one, capsules get their own glass.
@@ -549,6 +553,9 @@ struct ThemeConfig: Codable, Equatable, Sendable {
     /// The style `surface` started from; restoring copies its values back.
     var style: DockStyle = .glass
     var surface = DockStyle.glass.surface
+    /// Edited surfaces of the other styles, by `DockStyle.rawValue`, so picking
+    /// one again brings its edits back. The selected style's live in `surface`.
+    var customizations: [String: DockSurface] = [:]
     var iconSize: Double = 34
     /// Distance between the bottom of the screen's visible frame and the dock.
     var dockMargin: Double = 10
@@ -569,8 +576,24 @@ struct ThemeConfig: Codable, Equatable, Sendable {
     /// The surface was edited after its style was picked.
     var isCustomized: Bool { surface != style.surface }
 
-    mutating func apply(_ style: DockStyle) {
-        self.style = style
+    /// What `style` draws with: the live surface when it's selected, otherwise
+    /// its kept edits or its preset.
+    func surface(for style: DockStyle) -> DockSurface {
+        style == self.style ? surface : customizations[style.rawValue] ?? style.surface
+    }
+
+    func isCustomized(_ style: DockStyle) -> Bool { surface(for: style) != style.surface }
+
+    /// Switches styles, keeping the current one's edits for when it's picked again.
+    mutating func apply(_ next: DockStyle) {
+        customizations[style.rawValue] = isCustomized ? surface : nil
+        style = next
+        surface = customizations.removeValue(forKey: next.rawValue) ?? next.surface
+    }
+
+    /// Throws away the selected style's edits.
+    mutating func restore() {
+        customizations[style.rawValue] = nil
         surface = style.surface
     }
 
@@ -744,6 +767,13 @@ extension ThemeConfig {
         case cornerRadius, glassOpacity, borderOpacity, material
     }
 
+    private struct StyleKey: CodingKey {
+        var stringValue: String
+        var intValue: Int? { nil }
+        init(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { nil }
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = ThemeConfig()
@@ -760,6 +790,15 @@ extension ThemeConfig {
             surface.fillOpacity = try legacy.decode(.glassOpacity, or: surface.fillOpacity)
             surface.borderOpacity = try legacy.decode(.borderOpacity, or: surface.borderOpacity)
             surface.material = try legacy.decode(.material, or: surface.material)
+        }
+        if c.contains(.customizations), try !c.decodeNil(forKey: .customizations) {
+            let kept = try c.nestedContainer(keyedBy: StyleKey.self, forKey: .customizations)
+            for key in kept.allKeys {
+                // Missing keys fall back to that style's values, as in `surface`. A style
+                // this version doesn't know (from a newer one) is kept as it is.
+                let defaults = DockStyle(rawValue: key.stringValue)?.surface ?? DockSurface()
+                customizations[key.stringValue] = try DockSurface(from: kept.superDecoder(forKey: key), defaults: defaults)
+            }
         }
         iconSize = try c.decode(.iconSize, or: d.iconSize)
         dockMargin = try c.decode(.dockMargin, or: d.dockMargin)
@@ -789,6 +828,7 @@ extension DockSurface {
         // A key that's present but null means "window background", not "missing".
         fillTopHex = c.contains(.fillTopHex) ? try c.decodeIfPresent(String.self, forKey: .fillTopHex) : d.fillTopHex
         fillBottomHex = c.contains(.fillBottomHex) ? try c.decodeIfPresent(String.self, forKey: .fillBottomHex) : d.fillBottomHex
+        fillAngle = try c.decode(.fillAngle, or: d.fillAngle)
         fillOpacity = try c.decode(.fillOpacity, or: d.fillOpacity)
         borderHex = try c.decode(.borderHex, or: d.borderHex)
         borderOpacity = try c.decode(.borderOpacity, or: d.borderOpacity)
@@ -798,6 +838,7 @@ extension DockSurface {
         glowOpacity = try c.decode(.glowOpacity, or: d.glowOpacity)
         sheen = try c.decode(.sheen, or: d.sheen)
         cornerRadius = try c.decode(.cornerRadius, or: d.cornerRadius)
+        reflection = try c.decode(.reflection, or: d.reflection)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -807,6 +848,7 @@ extension DockSurface {
         // Written as null when unset, or loading would bring back the style's colors.
         try c.encode(fillTopHex, forKey: .fillTopHex)
         try c.encode(fillBottomHex, forKey: .fillBottomHex)
+        try c.encode(fillAngle, forKey: .fillAngle)
         try c.encode(fillOpacity, forKey: .fillOpacity)
         try c.encode(borderHex, forKey: .borderHex)
         try c.encode(borderOpacity, forKey: .borderOpacity)
@@ -816,6 +858,7 @@ extension DockSurface {
         try c.encode(glowOpacity, forKey: .glowOpacity)
         try c.encode(sheen, forKey: .sheen)
         try c.encode(cornerRadius, forKey: .cornerRadius)
+        try c.encode(reflection, forKey: .reflection)
     }
 }
 
