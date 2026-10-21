@@ -69,6 +69,13 @@ Git workflow:
   - It's a `Layout` on purpose: `ViewThatFits` also measures candidates it doesn't show, and a width kept in `@State` and fed back through a preference goes stale in those, which left the dock stuck at a sparser density.
 - matchedGeometry ids include the density, because every `ViewThatFits` candidate stays in the view graph.
 
+**Styles.** A `DockStyle` preset fills `ThemeConfig.surface`, a `DockSurface` holding blur, fill, border, glow, sheen and corners. Editing the surface makes the style "customized"; restoring copies the preset back.
+- `SurfaceBackground` draws a surface. A colored fill forces a readable `colorScheme` on the bar and its vibrancy.
+- Popovers stay on glass (`ThemeConfig.popoverSurface`). The floating style has no bar, so each capsule draws its own glass (`FloatingGlass`).
+- Configs without a `style` key predate styles: their `cornerRadius`, `glassOpacity`, `borderOpacity` and `material` migrate into the glass surface.
+- `DockSurface` writes unset fill colors as `null`, because a missing key falls back to the style's colors.
+- `--render-snapshots` also writes `dock-style-<id>.png` for every style.
+
 **Coordinates.** AppKit rects are bottom-left origin; the Accessibility/Quartz API and `CGWindowList` are top-left origin of the primary display. `TilingEngine.accessibilityRect(fromCocoa:primaryScreenHeight:)` converts in both directions. `TilingEngine` is pure layout math in top-left space, which is why its tests read top-down.
 
 **Accessibility pipeline.**

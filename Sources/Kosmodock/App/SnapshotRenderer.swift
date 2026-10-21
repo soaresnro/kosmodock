@@ -38,6 +38,17 @@ enum SnapshotRenderer {
         let geometry = GroupGeometryTracker()
         write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock", in: directory)
 
+        let theme = model.config.theme
+        for style in DockStyle.allCases {
+            model.configService.preview { $0.theme.apply(style) }
+            write(DockRootView(geometry: geometry), model: model, proposed: CGSize(width: width, height: 150), name: "dock-style-\(style.rawValue)", in: directory)
+        }
+        model.configService.preview { $0.theme = theme }
+        write(
+            HStack(spacing: 10) { ForEach(DockStyle.allCases) { DockStylePreview(surface: $0.surface, accent: model.accent).frame(width: 140) } },
+            model: model, proposed: nil, name: "style-previews", in: directory
+        )
+
         for group in model.config.groups {
             write(BentoPopoverView(groupID: group.id).fixedSize(), model: model, proposed: nil, name: "popover-\(group.id)", in: directory)
         }

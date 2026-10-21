@@ -150,6 +150,109 @@ enum AppearanceMode: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
+/// A ready-made look for the dock bar. Picking one copies its `surface` into
+/// the theme; editing those values customizes it, and restoring the style
+/// copies them back.
+enum DockStyle: String, Codable, CaseIterable, Identifiable, Sendable {
+    case glass
+    case midnight
+    case graphite
+    case neon
+    case paper
+    case floating
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .glass: L10n.tr("Glass")
+        case .midnight: L10n.tr("Midnight")
+        case .graphite: L10n.tr("Graphite")
+        case .neon: L10n.tr("Neon")
+        case .paper: L10n.tr("Paper")
+        case .floating: L10n.tr("Floating")
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .glass: L10n.tr("The macOS glass, following light and dark mode.")
+        case .midnight: L10n.tr("Dark glass with a crisp light border.")
+        case .graphite: L10n.tr("Dark gradient, blue edge and a soft glow.")
+        case .neon: L10n.tr("Black bar, magenta edge and a cyan glow.")
+        case .paper: L10n.tr("Almost white, with a quiet border and short corners.")
+        case .floating: L10n.tr("No bar: each capsule floats on its own glass.")
+        }
+    }
+
+    var surface: DockSurface {
+        switch self {
+        case .glass:
+            DockSurface()
+        case .midnight:
+            DockSurface(
+                fillTopHex: "#151C36", fillBottomHex: "#070B18", fillOpacity: 0.62,
+                borderOpacity: 0.45, specularBorder: false, sheen: false
+            )
+        case .graphite:
+            DockSurface(
+                fillTopHex: "#3A3F4B", fillBottomHex: "#0E1014", fillOpacity: 0.86,
+                borderHex: "#8FB6FF", borderOpacity: 0.55, specularBorder: false,
+                glowHex: "#4C8DFF", glowOpacity: 0.55, cornerRadius: 12
+            )
+        case .neon:
+            DockSurface(
+                fillTopHex: "#0A0A12", fillBottomHex: "#000000", fillOpacity: 0.9,
+                borderHex: "#FF2BD6", borderOpacity: 0.9, borderWidth: 1.5, specularBorder: false,
+                glowHex: "#00E5FF", glowOpacity: 0.75, sheen: false, cornerRadius: 26
+            )
+        case .paper:
+            DockSurface(
+                fillTopHex: "#FFFFFF", fillBottomHex: "#F1F1EE", fillOpacity: 0.96,
+                borderHex: "#C9C9C4", borderOpacity: 0.8, specularBorder: false,
+                sheen: false, cornerRadius: 14
+            )
+        case .floating:
+            DockSurface(blur: false, fillOpacity: 0, borderOpacity: 0, borderWidth: 0, sheen: false)
+        }
+    }
+}
+
+/// What draws the bar: the values a `DockStyle` sets and Settings fine-tunes.
+struct DockSurface: Codable, Equatable, Sendable {
+    /// Behind-window vibrancy under the fill.
+    var blur = true
+    var material: GlassMaterial = .hudWindow
+    /// Fill from top to bottom. Without colors it's the window background,
+    /// which follows light and dark mode.
+    var fillTopHex: String?
+    var fillBottomHex: String?
+    /// Opacity of the fill over the blur (0 = pure glass, 1 = solid).
+    var fillOpacity = 0.35
+    var borderHex = "#FFFFFF"
+    var borderOpacity = 0.6
+    var borderWidth = 1.0
+    /// Brighter at the top, like light on glass, instead of an even line.
+    var specularBorder = true
+    var glowHex = "#FFFFFF"
+    /// Colored halo around the bar; 0 turns it off.
+    var glowOpacity = 0.0
+    /// Soft highlight across the top half.
+    var sheen = true
+    var cornerRadius = 22.0
+
+    // Declared because both coding directions are hand-written (see the extension).
+    enum CodingKeys: String, CodingKey {
+        case blur, material, fillTopHex, fillBottomHex, fillOpacity, borderHex, borderOpacity
+        case borderWidth, specularBorder, glowHex, glowOpacity, sheen, cornerRadius
+    }
+
+    /// Whether there's a bar at all. Without one, capsules get their own glass.
+    var isVisible: Bool {
+        blur || fillOpacity > 0 || (borderOpacity > 0 && borderWidth > 0)
+    }
+}
+
 /// Interface language. `system` follows macOS (English when unsupported).
 enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case system
@@ -208,10 +311,9 @@ struct DockConfig: Codable, Equatable, Sendable {
 }
 
 struct ThemeConfig: Codable, Equatable, Sendable {
-    var cornerRadius: Double = 22
-    /// Opacity of the tint laid over the vibrancy blur (0 = pure glass, 1 = solid).
-    var glassOpacity: Double = 0.35
-    var borderOpacity: Double = 0.6
+    /// The style `surface` started from; restoring copies its values back.
+    var style: DockStyle = .glass
+    var surface = DockStyle.glass.surface
     var iconSize: Double = 34
     /// Distance between the bottom of the screen's visible frame and the dock.
     var dockMargin: Double = 10
@@ -222,9 +324,20 @@ struct ThemeConfig: Codable, Equatable, Sendable {
     /// Space between the top of the dock and windows kept above it.
     var dockClearance: Double = 5
     var accentHex: String = "#8B7CFF"
-    var material: GlassMaterial = .hudWindow
     var appearance: AppearanceMode = .system
     var showGroupLabels: Bool = true
+
+    /// The surface was edited after its style was picked.
+    var isCustomized: Bool { surface != style.surface }
+
+    mutating func apply(_ style: DockStyle) {
+        self.style = style
+        surface = style.surface
+    }
+
+    /// Popovers stay on glass: a neon or paper popover would be hard to read.
+    /// With the glass style they follow its edits.
+    var popoverSurface: DockSurface { style == .glass ? surface : DockStyle.glass.surface }
 }
 
 struct BehaviorConfig: Codable, Equatable, Sendable {
@@ -362,12 +475,28 @@ extension DockConfig {
 }
 
 extension ThemeConfig {
+    /// Before styles, the glass look's values sat on the theme itself.
+    private enum LegacyKeys: String, CodingKey {
+        case cornerRadius, glassOpacity, borderOpacity, material
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = ThemeConfig()
-        cornerRadius = try c.decode(.cornerRadius, or: d.cornerRadius)
-        glassOpacity = try c.decode(.glassOpacity, or: d.glassOpacity)
-        borderOpacity = try c.decode(.borderOpacity, or: d.borderOpacity)
+        style = try c.decode(.style, or: d.style)
+        if c.contains(.surface) {
+            // Missing surface keys fall back to the style's own values.
+            surface = try DockSurface(from: c.superDecoder(forKey: .surface), defaults: style.surface)
+        } else if c.contains(.style) {
+            surface = style.surface
+        } else {
+            let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+            surface = style.surface
+            surface.cornerRadius = try legacy.decode(.cornerRadius, or: surface.cornerRadius)
+            surface.fillOpacity = try legacy.decode(.glassOpacity, or: surface.fillOpacity)
+            surface.borderOpacity = try legacy.decode(.borderOpacity, or: surface.borderOpacity)
+            surface.material = try legacy.decode(.material, or: surface.material)
+        }
         iconSize = try c.decode(.iconSize, or: d.iconSize)
         dockMargin = try c.decode(.dockMargin, or: d.dockMargin)
         springResponse = try c.decode(.springResponse, or: d.springResponse)
@@ -375,9 +504,50 @@ extension ThemeConfig {
         tileGap = try c.decode(.tileGap, or: d.tileGap)
         dockClearance = try c.decode(.dockClearance, or: d.dockClearance)
         accentHex = try c.decode(.accentHex, or: d.accentHex)
-        material = try c.decode(.material, or: d.material)
         appearance = try c.decode(.appearance, or: d.appearance)
         showGroupLabels = try c.decode(.showGroupLabels, or: d.showGroupLabels)
+    }
+}
+
+extension DockSurface {
+    init(from decoder: Decoder) throws {
+        try self.init(from: decoder, defaults: DockSurface())
+    }
+
+    init(from decoder: Decoder, defaults d: DockSurface) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        blur = try c.decode(.blur, or: d.blur)
+        material = try c.decode(.material, or: d.material)
+        // A key that's present but null means "window background", not "missing".
+        fillTopHex = c.contains(.fillTopHex) ? try c.decodeIfPresent(String.self, forKey: .fillTopHex) : d.fillTopHex
+        fillBottomHex = c.contains(.fillBottomHex) ? try c.decodeIfPresent(String.self, forKey: .fillBottomHex) : d.fillBottomHex
+        fillOpacity = try c.decode(.fillOpacity, or: d.fillOpacity)
+        borderHex = try c.decode(.borderHex, or: d.borderHex)
+        borderOpacity = try c.decode(.borderOpacity, or: d.borderOpacity)
+        borderWidth = try c.decode(.borderWidth, or: d.borderWidth)
+        specularBorder = try c.decode(.specularBorder, or: d.specularBorder)
+        glowHex = try c.decode(.glowHex, or: d.glowHex)
+        glowOpacity = try c.decode(.glowOpacity, or: d.glowOpacity)
+        sheen = try c.decode(.sheen, or: d.sheen)
+        cornerRadius = try c.decode(.cornerRadius, or: d.cornerRadius)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(blur, forKey: .blur)
+        try c.encode(material, forKey: .material)
+        // Written as null when unset, or loading would bring back the style's colors.
+        try c.encode(fillTopHex, forKey: .fillTopHex)
+        try c.encode(fillBottomHex, forKey: .fillBottomHex)
+        try c.encode(fillOpacity, forKey: .fillOpacity)
+        try c.encode(borderHex, forKey: .borderHex)
+        try c.encode(borderOpacity, forKey: .borderOpacity)
+        try c.encode(borderWidth, forKey: .borderWidth)
+        try c.encode(specularBorder, forKey: .specularBorder)
+        try c.encode(glowHex, forKey: .glowHex)
+        try c.encode(glowOpacity, forKey: .glowOpacity)
+        try c.encode(sheen, forKey: .sheen)
+        try c.encode(cornerRadius, forKey: .cornerRadius)
     }
 }
 

@@ -553,3 +553,86 @@ final class CapsuleRowTests: XCTestCase {
         XCTAssertEqual(NSHostingView(rootView: fits).fittingSize.height, 10)
     }
 }
+
+/// Styles are presets of the bar's surface; old configs keep their glass.
+final class ThemeStyleTests: XCTestCase {
+    private func theme(_ json: String) throws -> ThemeConfig {
+        try JSONDecoder().decode(ThemeConfig.self, from: Data(json.utf8))
+    }
+
+    func testThemeFromBeforeStylesKeepsItsGlass() throws {
+        let edited = try theme(#"{ "cornerRadius": 18, "glassOpacity": 0.5, "borderOpacity": 0.3, "material": "menu" }"#)
+        XCTAssertEqual(edited.style, .glass)
+        XCTAssertEqual(edited.surface.cornerRadius, 18)
+        XCTAssertEqual(edited.surface.fillOpacity, 0.5)
+        XCTAssertEqual(edited.surface.borderOpacity, 0.3)
+        XCTAssertEqual(edited.surface.material, .menu)
+        XCTAssertTrue(edited.isCustomized)
+
+        let untouched = try theme(#"{ "cornerRadius": 22, "glassOpacity": 0.35, "borderOpacity": 0.6, "material": "hudWindow" }"#)
+        XCTAssertEqual(untouched, ThemeConfig())
+        XCTAssertFalse(untouched.isCustomized)
+    }
+
+    func testOldGlassKeysDontOverrideAChosenStyle() throws {
+        let neon = try theme(#"{ "style": "neon", "cornerRadius": 22, "glassOpacity": 0.35, "borderOpacity": 0.6 }"#)
+        XCTAssertEqual(neon.surface, DockStyle.neon.surface)
+        XCTAssertFalse(neon.isCustomized)
+    }
+
+    func testMissingSurfaceKeysFallBackToTheStyle() throws {
+        let neon = try theme(#"{ "style": "neon", "surface": { "cornerRadius": 10 } }"#)
+        var expected = DockStyle.neon.surface
+        expected.cornerRadius = 10
+        XCTAssertEqual(neon.surface, expected)
+    }
+
+    func testRoundTripKeepsARemovedFill() throws {
+        var original = ThemeConfig()
+        original.apply(.midnight)
+        original.surface.fillTopHex = nil
+        original.surface.fillBottomHex = nil
+        let decoded = try JSONDecoder().decode(ThemeConfig.self, from: JSONEncoder().encode(original))
+        XCTAssertEqual(decoded, original)
+    }
+
+    func testRestoringAStyleDropsTheEdits() {
+        var theme = ThemeConfig()
+        theme.apply(.paper)
+        XCTAssertFalse(theme.isCustomized)
+        theme.surface.borderWidth = 2.5
+        XCTAssertTrue(theme.isCustomized)
+        theme.apply(theme.style)
+        XCTAssertEqual(theme.surface, DockStyle.paper.surface)
+    }
+
+    func testColoredFillsPickAReadableScheme() {
+        XCTAssertNil(DockStyle.glass.surface.colorScheme, "the window background already follows the mode")
+        XCTAssertNil(DockStyle.floating.surface.colorScheme)
+        XCTAssertEqual(DockStyle.paper.surface.colorScheme, .light)
+        for style in [DockStyle.midnight, .graphite, .neon] {
+            XCTAssertEqual(style.surface.colorScheme, .dark, style.rawValue)
+        }
+    }
+
+    func testEveryStyleColorParses() {
+        for style in DockStyle.allCases {
+            let surface = style.surface
+            for hex in [surface.borderHex, surface.glowHex] + [surface.fillTopHex, surface.fillBottomHex].compactMap({ $0 }) {
+                XCTAssertNotNil(Color(hex: hex), "\(style.rawValue): \(hex)")
+            }
+        }
+    }
+
+    func testOnlyTheFloatingStyleHasNoBar() {
+        XCTAssertEqual(DockStyle.allCases.filter { !$0.surface.isVisible }, [.floating])
+    }
+
+    func testPopoversStayOnGlass() {
+        var theme = ThemeConfig()
+        theme.surface.cornerRadius = 30
+        XCTAssertEqual(theme.popoverSurface.cornerRadius, 30, "glass edits reach the popover")
+        theme.apply(.neon)
+        XCTAssertEqual(theme.popoverSurface, DockStyle.glass.surface)
+    }
+}

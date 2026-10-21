@@ -138,12 +138,13 @@ struct DockBar: View {
     let namespace: Namespace.ID
     let maxWidth: CGFloat
     let scrolls: Bool
+    @Environment(\.colorScheme) private var inheritedScheme
 
     /// The bar's horizontal padding, which `CapsuleRow` leaves out of `maxWidth`.
     private static let padding: CGFloat = 7
 
     var body: some View {
-        let shape = CGFloat(model.theme.cornerRadius)
+        let surface = model.theme.surface
         Group {
             if scrolls {
                 ScrollView(.horizontal) { content }
@@ -154,12 +155,13 @@ struct DockBar: View {
                 content.fixedSize()
             }
         }
-        .background(GlassBackground(cornerRadius: shape))
+        .background(SurfaceBackground(surface: surface, cornerRadius: CGFloat(surface.cornerRadius)))
         .background {
             GeometryReader { proxy in
                 Color.clear.preference(key: MeasuredSizeKey.self, value: proxy.size)
             }
         }
+        .environment(\.colorScheme, surface.colorScheme ?? inheritedScheme)
     }
 
     private var content: some View {
@@ -219,9 +221,10 @@ private struct DockUtilityButton: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 30, height: CGFloat(model.theme.iconSize) * 0.62 + 18)
                     .background {
-                        RoundedRectangle(cornerRadius: max(6, CGFloat(model.theme.cornerRadius) - 9), style: .continuous)
+                        RoundedRectangle(cornerRadius: model.theme.capsuleRadius, style: .continuous)
                             .fill(Color.primary.opacity(isHovering ? 0.12 : 0.05))
                     }
+                    .modifier(FloatingGlass(cornerRadius: model.theme.capsuleRadius))
                 if untrusted {
                     Circle()
                         .fill(HealthLevel.warning.color)

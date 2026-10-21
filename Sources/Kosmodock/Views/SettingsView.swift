@@ -426,18 +426,28 @@ private struct AppearanceSettingsView: View {
 
     var body: some View {
         Form {
-            Section("Glass") {
-                Picker("Material", selection: model.binding(\.theme.material)) {
-                    ForEach(GlassMaterial.allCases) { Text($0.title).tag($0) }
-                }
+            Section("Theme") {
+                DockStylePicker()
                 Picker("Appearance", selection: model.binding(\.theme.appearance)) {
                     ForEach(AppearanceMode.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                SliderRow(title: L10n.tr("Glass tint"), value: model.binding(\.theme.glassOpacity), range: 0...1, format: Self.percent)
-                SliderRow(title: L10n.tr("Specular border"), value: model.binding(\.theme.borderOpacity), range: 0...1, format: Self.percent)
-                SliderRow(title: L10n.tr("Corner radius"), value: model.binding(\.theme.cornerRadius), range: 6...40, step: 1, format: Self.points)
                 ColorPicker("Accent", selection: accentBinding, supportsOpacity: false)
+            }
+            Section {
+                surfaceControls
+            } header: {
+                Text("Customize this theme")
+            } footer: {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(model.theme.style.summary)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button(L10n.tr("Restore %@", model.theme.style.title)) {
+                        model.configService.update { $0.theme.apply($0.theme.style) }
+                    }
+                    .disabled(!model.theme.isCustomized)
+                }
             }
             Section("Layout") {
                 SliderRow(title: L10n.tr("Icon size"), value: model.binding(\.theme.iconSize), range: 20...64, step: 1, format: Self.points)
@@ -472,6 +482,51 @@ private struct AppearanceSettingsView: View {
         .navigationTitle("Appearance")
     }
 
+    /// Only the values the current style draws with.
+    @ViewBuilder private var surfaceControls: some View {
+        let surface = model.theme.surface
+        if model.theme.style != .floating {
+            Toggle("Background blur", isOn: surfaceBinding(\.blur))
+            if surface.blur {
+                Picker("Material", selection: surfaceBinding(\.material)) {
+                    ForEach(GlassMaterial.allCases) { Text($0.title).tag($0) }
+                }
+            }
+            if surface.fillTopHex != nil {
+                ColorPicker("Top color", selection: colorBinding(\.fillTopHex), supportsOpacity: false)
+                ColorPicker("Bottom color", selection: colorBinding(\.fillBottomHex), supportsOpacity: false)
+                SliderRow(title: L10n.tr("Fill opacity"), value: surfaceBinding(\.fillOpacity), range: 0...1, format: Self.percent)
+            } else {
+                SliderRow(title: L10n.tr("Glass tint"), value: surfaceBinding(\.fillOpacity), range: 0...1, format: Self.percent)
+            }
+            ColorPicker("Border color", selection: colorBinding(\.borderHex), supportsOpacity: false)
+            SliderRow(title: L10n.tr("Border opacity"), value: surfaceBinding(\.borderOpacity), range: 0...1, format: Self.percent)
+            SliderRow(title: L10n.tr("Border width"), value: surfaceBinding(\.borderWidth), range: 0...3, step: 0.5, format: Self.fractionalPoints)
+            ColorPicker("Glow color", selection: colorBinding(\.glowHex), supportsOpacity: false)
+            SliderRow(title: L10n.tr("Glow"), value: surfaceBinding(\.glowOpacity), range: 0...1, format: Self.percent)
+            Toggle("Top highlight", isOn: surfaceBinding(\.sheen))
+        }
+        SliderRow(title: L10n.tr("Corner radius"), value: surfaceBinding(\.cornerRadius), range: 6...40, step: 1, format: Self.points)
+    }
+
+    private func surfaceBinding<Value: Sendable>(_ keyPath: WritableKeyPath<DockSurface, Value>) -> Binding<Value> {
+        model.binding((\DockConfig.theme.surface).appending(path: keyPath))
+    }
+
+    private func colorBinding(_ keyPath: WritableKeyPath<DockSurface, String>) -> Binding<Color> {
+        Binding(
+            get: { Color(hex: model.theme.surface[keyPath: keyPath]) ?? .white },
+            set: { color in model.configService.update { $0.theme.surface[keyPath: keyPath] = color.hexString } }
+        )
+    }
+
+    private func colorBinding(_ keyPath: WritableKeyPath<DockSurface, String?>) -> Binding<Color> {
+        Binding(
+            get: { Color(hex: model.theme.surface[keyPath: keyPath]) ?? .white },
+            set: { color in model.configService.update { $0.theme.surface[keyPath: keyPath] = color.hexString } }
+        )
+    }
+
     private var accentBinding: Binding<Color> {
         Binding(
             get: { model.accent },
@@ -481,6 +536,81 @@ private struct AppearanceSettingsView: View {
 
     static func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
     static func points(_ value: Double) -> String { "\(Int(value.rounded())) pt" }
+    static func fractionalPoints(_ value: Double) -> String { String(format: "%.1f pt", locale: L10n.locale, value) }
+}
+
+/// The styles as cards, each a miniature bar over a stand-in wallpaper.
+private struct DockStylePicker: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], spacing: 10) {
+            ForEach(DockStyle.allCases) { style in
+                let isSelected = model.theme.style == style
+                Button {
+                    model.configService.update { $0.theme.apply(style) }
+                } label: {
+                    VStack(spacing: 6) {
+                        DockStylePreview(surface: isSelected ? model.theme.surface : style.surface, accent: model.accent)
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                    .strokeBorder(isSelected ? model.accent : Color.primary.opacity(0.12), lineWidth: isSelected ? 2 : 1)
+                            }
+                        HStack(spacing: 4) {
+                            Text(style.title)
+                                .font(.system(size: 11.5, weight: isSelected ? .semibold : .regular))
+                            if isSelected, model.theme.isCustomized {
+                                Text("Customized")
+                                    .font(.system(size: 9.5, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(style.summary)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+/// A short bar of four icon placeholders drawn with `surface`.
+struct DockStylePreview: View {
+    var surface: DockSurface
+    var accent: Color
+
+    var body: some View {
+        let scale: CGFloat = 0.5
+        let radius = CGFloat(surface.cornerRadius) * scale
+        ZStack(alignment: .bottom) {
+            LinearGradient(
+                colors: [Color(red: 0.30, green: 0.36, blue: 0.62), Color(red: 0.20, green: 0.14, blue: 0.34)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            RadialGradient(colors: [Color.orange.opacity(0.35), .clear], center: .topTrailing, startRadius: 4, endRadius: 90)
+            HStack(spacing: 5) {
+                ForEach(Array([accent, .orange, .teal, .pink].enumerated()), id: \.offset) { _, color in
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .fill(color.gradient)
+                        .frame(width: 15, height: 15)
+                        .background {
+                            if !surface.isVisible {
+                                SurfaceBackground(surface: DockStyle.glass.surface, cornerRadius: 6, blending: .withinWindow, scale: 0.25)
+                                    .padding(-3)
+                            }
+                        }
+                }
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 5)
+            .background(SurfaceBackground(surface: surface, cornerRadius: radius, blending: .withinWindow, scale: scale))
+            .padding(.bottom, 9)
+        }
+        .frame(height: 62)
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
 }
 
 private struct SliderRow: View {

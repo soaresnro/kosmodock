@@ -21,7 +21,7 @@ struct GroupCapsuleView: View {
         let theme = model.theme
         let tint = model.tint(for: group)
         let iconSize = CGFloat(theme.iconSize)
-        let radius = max(6, CGFloat(theme.cornerRadius) - 9)
+        let radius = theme.capsuleRadius
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
 
         HStack(spacing: density == .minimal ? 6 : 10) {
@@ -48,6 +48,7 @@ struct GroupCapsuleView: View {
         .overlay {
             shape.strokeBorder(tint.opacity(isHighlighted ? 0.55 : 0.18), lineWidth: isHighlighted ? 1 : 0.5)
         }
+        .modifier(FloatingGlass(cornerRadius: radius))
         .contentShape(shape)
         .onTapGesture { model.tap(group) }
         .onHover { hovering in
