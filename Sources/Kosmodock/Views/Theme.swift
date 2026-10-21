@@ -65,6 +65,9 @@ extension AppearanceMode {
 struct VisualEffectBackground: NSViewRepresentable {
     var material: NSVisualEffectView.Material
     var cornerRadius: CGFloat
+    var blending: NSVisualEffectView.BlendingMode = .behindWindow
+    /// Forces light or dark vibrancy; `nil` follows the window.
+    var appearance: NSAppearance?
 
     final class Coordinator {
         var radius: CGFloat = -1
@@ -74,7 +77,6 @@ struct VisualEffectBackground: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
-        view.blendingMode = .behindWindow
         view.state = .active
         update(view, coordinator: context.coordinator)
         return view
@@ -86,6 +88,8 @@ struct VisualEffectBackground: NSViewRepresentable {
 
     private func update(_ view: NSVisualEffectView, coordinator: Coordinator) {
         if view.material != material { view.material = material }
+        if view.blendingMode != blending { view.blendingMode = blending }
+        if view.appearance?.name != appearance?.name { view.appearance = appearance }
         if coordinator.radius != cornerRadius {
             coordinator.radius = cornerRadius
             view.maskImage = Self.maskImage(cornerRadius: cornerRadius)
@@ -108,36 +112,111 @@ struct VisualEffectBackground: NSViewRepresentable {
     }
 }
 
-/// Glassmorphic surface: vibrancy + adjustable tint + top sheen + 1px
-/// specular border + soft drop shadow.
-struct GlassBackground: View {
+extension DockSurface {
+    /// Text and symbols must contrast with a colored fill, so it picks the
+    /// scheme. The window-background fill already follows light and dark mode.
+    var colorScheme: ColorScheme? {
+        guard fillOpacity >= 0.4, let top = fillTopHex, let bottom = fillBottomHex,
+              let topLuminance = Self.luminance(hex: top), let bottomLuminance = Self.luminance(hex: bottom)
+        else { return nil }
+        return (topLuminance + bottomLuminance) / 2 > 0.6 ? .light : .dark
+    }
+
+    var vibrancyAppearance: NSAppearance? {
+        guard let colorScheme else { return nil }
+        return NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
+    }
+
+    /// Relative luminance (0 black … 1 white) of a `#RRGGBB` color.
+    static func luminance(hex: String) -> Double? {
+        guard let color = Color(hex: hex), let rgb = NSColor(color).usingColorSpace(.sRGB) else { return nil }
+        return 0.2126 * rgb.redComponent + 0.7152 * rgb.greenComponent + 0.0722 * rgb.blueComponent
+    }
+}
+
+extension ThemeConfig {
+    /// Corner radius of the capsules and buttons inside the bar.
+    var capsuleRadius: CGFloat { max(6, CGFloat(surface.cornerRadius) - 9) }
+}
+
+/// Without a bar (the floating style) a capsule draws its own glass, so it
+/// stays readable over any wallpaper.
+struct FloatingGlass: ViewModifier {
     @Environment(AppModel.self) private var model
     var cornerRadius: CGFloat
 
+    func body(content: Content) -> some View {
+        content.background {
+            if !model.theme.surface.isVisible {
+                SurfaceBackground(surface: DockStyle.glass.surface, cornerRadius: cornerRadius, scale: 0.5)
+            }
+        }
+    }
+}
+
+/// Draws a `DockSurface`: drop shadow, behind-window blur, fill, top sheen,
+/// border and glow. `scale` shrinks the shadow and glow for small previews.
+struct SurfaceBackground: View {
+    var surface: DockSurface
+    var cornerRadius: CGFloat
+    var blending: NSVisualEffectView.BlendingMode = .behindWindow
+    var scale: CGFloat = 1
+
     var body: some View {
-        let theme = model.theme
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        let border = theme.borderOpacity
+        let border = Color(hex: surface.borderHex) ?? .white
+        let glow = Color(hex: surface.glowHex) ?? .white
         ZStack {
-            shape
-                .fill(Color.black.opacity(0.22))
-                .shadow(color: .black.opacity(0.35), radius: 18, x: 0, y: 10)
-            VisualEffectBackground(material: theme.material.nsMaterial, cornerRadius: cornerRadius)
-            shape.fill(Color(nsColor: .windowBackgroundColor).opacity(theme.glassOpacity * 0.85))
-            shape.fill(LinearGradient(
-                colors: [Color.white.opacity(0.10), Color.white.opacity(0)],
-                startPoint: .top, endPoint: .center
-            ))
+            if surface.isVisible {
+                shape
+                    .fill(Color.black.opacity(0.22))
+                    .shadow(color: .black.opacity(0.35), radius: 18 * scale, x: 0, y: 10 * scale)
+            }
+            if surface.blur {
+                VisualEffectBackground(
+                    material: surface.material.nsMaterial, cornerRadius: cornerRadius,
+                    blending: blending, appearance: surface.vibrancyAppearance
+                )
+            }
+            shape.fill(fill)
+            if surface.sheen {
+                shape.fill(LinearGradient(
+                    colors: [Color.white.opacity(0.10), Color.white.opacity(0)],
+                    startPoint: .top, endPoint: .center
+                ))
+            }
         }
         .overlay {
-            shape.strokeBorder(
-                LinearGradient(
-                    colors: [Color.white.opacity(0.50 * border), Color.white.opacity(0.08 * border), Color.white.opacity(0.22 * border)],
-                    startPoint: .top, endPoint: .bottom
-                ),
-                lineWidth: 1
-            )
+            if surface.borderWidth > 0, surface.borderOpacity > 0 {
+                let opacity = surface.borderOpacity
+                shape.strokeBorder(
+                    surface.specularBorder
+                        ? LinearGradient(
+                            colors: [border.opacity(0.50 * opacity), border.opacity(0.08 * opacity), border.opacity(0.22 * opacity)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                        : LinearGradient(colors: [border.opacity(opacity)], startPoint: .top, endPoint: .bottom),
+                    lineWidth: surface.borderWidth
+                )
+            }
         }
+        .background {
+            // Stays within the panel's shadow inset (`DockMetrics.shadowInset`).
+            if surface.glowOpacity > 0 {
+                shape
+                    .stroke(glow.opacity(surface.glowOpacity), lineWidth: 3 * scale)
+                    .shadow(color: glow.opacity(surface.glowOpacity), radius: 5 * scale)
+                    .shadow(color: glow.opacity(surface.glowOpacity * 0.8), radius: 14 * scale)
+            }
+        }
+    }
+
+    private var fill: AnyShapeStyle {
+        guard let top = Color(hex: surface.fillTopHex), let bottom = Color(hex: surface.fillBottomHex) else {
+            // The original glass tint, kept as it was.
+            return AnyShapeStyle(Color(nsColor: .windowBackgroundColor).opacity(surface.fillOpacity * 0.85))
+        }
+        return AnyShapeStyle(LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom).opacity(surface.fillOpacity))
     }
 }
 

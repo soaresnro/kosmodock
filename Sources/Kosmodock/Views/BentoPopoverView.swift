@@ -48,7 +48,7 @@ struct BentoPopoverView: View {
             }
             .padding(16)
             .frame(width: DockMetrics.popoverWidth)
-            .background(GlassBackground(cornerRadius: CGFloat(model.theme.cornerRadius) + 4))
+            .background(SurfaceBackground(surface: model.theme.popoverSurface, cornerRadius: CGFloat(model.theme.popoverSurface.cornerRadius) + 4))
             .tint(model.tint(for: group))
         }
     }

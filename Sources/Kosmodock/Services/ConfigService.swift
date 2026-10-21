@@ -66,6 +66,15 @@ final class ConfigService {
         scheduleSave()
     }
 
+    #if DEBUG
+    /// Debug snapshots only: applies a change in memory and never saves it.
+    func preview(_ mutate: (inout DockConfig) -> Void) {
+        var next = config
+        mutate(&next)
+        apply(next)
+    }
+    #endif
+
     func saveNow() {
         pendingSave?.cancel()
         writeToDisk()
