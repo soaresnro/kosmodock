@@ -47,7 +47,7 @@ struct ClaudeTile: View {
 }
 
 /// A plan window as a bar, with "—" once it has reset or before any data.
-private struct LimitMeter: View {
+struct LimitMeter: View {
     let label: String
     let limit: ClaudeLimit?
 
@@ -173,7 +173,7 @@ struct NowPlayingTile: View {
         case .playing(let track):
             if isWide {
                 HStack(spacing: 6) {
-                    PlayerIcon(player: track.player, size: 18)
+                    TrackArtwork(player: track.player, size: 18)
                     VStack(alignment: .leading, spacing: 0) {
                         Text(track.title).font(.system(size: 10.5, weight: .semibold))
                         Text(track.artist).font(.system(size: 9)).foregroundStyle(.secondary)
@@ -192,7 +192,7 @@ struct NowPlayingTile: View {
                     .help(track.isPlaying ? L10n.tr("Pause") : L10n.tr("Play"))
                 }
             } else {
-                PlayerIcon(player: track.player, size: 22)
+                TrackArtwork(player: track.player, size: 22)
                     .overlay(alignment: .bottomTrailing) {
                         Image(systemName: track.isPlaying ? "play.fill" : "pause.fill")
                             .font(.system(size: 6.5, weight: .heavy))
@@ -219,7 +219,7 @@ struct NowPlayingTile: View {
     }
 }
 
-private struct PlayerIcon: View {
+struct PlayerIcon: View {
     let player: MediaPlayer
     let size: CGFloat
 
@@ -240,7 +240,7 @@ struct NowPlayingDetails: View {
             BentoCard(title: track.player.scriptName, symbol: "music.note") {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
-                        PlayerIcon(player: track.player, size: 44)
+                        TrackArtwork(player: track.player, size: 44)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(track.title).font(.system(size: 13, weight: .semibold))
                             Text(track.artist).font(.system(size: 11)).foregroundStyle(.secondary)

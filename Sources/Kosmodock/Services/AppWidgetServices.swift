@@ -49,8 +49,13 @@ final class NowPlayingService {
     }
 
     private(set) var state: State = .idle
+    /// Music's album art for the current track (AppWidgetServices+More.swift);
+    /// nil for Spotify, whose art is on the web.
+    private(set) var artwork: NSImage?
 
     @ObservationIgnored private var loop: Task<Void, Never>?
+    /// The track `artwork` was fetched for, even when it had none.
+    @ObservationIgnored private var artworkKey: String?
 
     func setEnabled(_ enabled: Bool) {
         guard enabled != (loop != nil) else { return }
@@ -63,8 +68,8 @@ final class NowPlayingService {
                     try? await Task.sleep(for: .seconds(3))
                 }
             }
-        } else if state != .idle {
-            state = .idle
+        } else {
+            publish(.idle)
         }
     }
 
@@ -99,6 +104,26 @@ final class NowPlayingService {
 
     private func publish(_ next: State) {
         if next != state { state = next }
+        updateArtwork()
+    }
+
+    /// Asks Music for the art once per track, and drops the old one as soon
+    /// as the track changes.
+    private func updateArtwork() {
+        guard case .playing(let track) = state, track.player == .music else {
+            artworkKey = nil
+            if artwork != nil { artwork = nil }
+            return
+        }
+        let key = track.artworkKey
+        guard key != artworkKey else { return }
+        artworkKey = key
+        if artwork != nil { artwork = nil }
+        Task {
+            let image = await Self.fetchArtwork()
+            guard artworkKey == key, let image else { return }
+            artwork = NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+        }
     }
 
     /// Tab-separated state, title, artist, album, duration (s) and position (s).
@@ -228,7 +253,7 @@ final class CalendarService {
     }
 }
 
-private enum HexColor {
+enum HexColor {
     static func of(_ color: NSColor) -> String {
         guard let rgb = color.usingColorSpace(.sRGB) else { return "#8E8E93" }
         func component(_ value: CGFloat) -> Int { Int((min(1, max(0, value)) * 255).rounded()) }

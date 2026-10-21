@@ -697,6 +697,12 @@ private struct TileEditorSection: View {
                 Text("Uses the `gh` command and its login, so Kosmodock holds no token. It checks every two minutes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            case .codex:
+                Text("Reads Codex's session files in ~/.codex on this Mac. The plan limits update after each reply in Codex.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .reminders:
+                RemindersAccessRow()
             case .battery, .activity, .network:
                 EmptyView()
             }

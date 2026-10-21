@@ -338,6 +338,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case nowPlaying
     case calendar
     case github
+    case codex
+    case reminders
     case command
 
     var id: String { rawValue }
@@ -352,6 +354,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .nowPlaying: L10n.tr("Now Playing")
         case .calendar: L10n.tr("Calendar")
         case .github: "GitHub"
+        case .codex: "Codex"
+        case .reminders: L10n.tr("Reminders")
         case .command: L10n.tr("Command")
         }
     }
@@ -366,6 +370,8 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
         case .nowPlaying: "music.note"
         case .calendar: "calendar"
         case .github: "arrow.triangle.pull"
+        case .codex: "curlybraces"
+        case .reminders: "checklist"
         case .command: "terminal"
         }
     }
@@ -390,7 +396,7 @@ enum TileKind: String, Codable, CaseIterable, Identifiable, Sendable {
     var category: Category {
         switch self {
         case .clock, .battery, .activity, .network: .system
-        case .claudeCode, .nowPlaying, .calendar, .github: .apps
+        case .claudeCode, .nowPlaying, .calendar, .github, .codex, .reminders: .apps
         case .command: .custom
         }
     }

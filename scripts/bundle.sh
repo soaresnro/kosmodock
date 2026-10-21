@@ -104,6 +104,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <string>Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.</string>
     <key>NSCalendarsUsageDescription</key>
     <string>Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.</string>
+    <key>NSRemindersFullAccessUsageDescription</key>
+    <string>Kosmodock reads your reminders only for the Reminders widget, to show what's due. It changes one only when you mark it as completed there.</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>Kosmodock reads your reminders only for the Reminders widget, to show what's due. It changes one only when you mark it as completed there.</string>
 </dict>
 </plist>
 PLIST

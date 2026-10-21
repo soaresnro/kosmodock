@@ -452,3 +452,21 @@
 "Restore the backup from %@?" = "¿Restaurar la copia de seguridad del %@?";
 "Restore…" = "Restaurar…";
 "Your current config.json is backed up first, so you can go back to it." = "Antes se hace una copia de seguridad de tu config.json actual, para que puedas volver a él.";
+
+/* App widget additions */
+"%lld more in Reminders" = "%lld más en Recordatorios";
+"Allow Reminders Access" = "Permitir acceso a Recordatorios";
+"Codex hasn't run on this Mac" = "Codex aún no se ha ejecutado en este Mac";
+"Its usage shows up here after your first session in Codex, read from ~/.codex." = "Su uso aparece aquí después de tu primera sesión en Codex, leído de ~/.codex.";
+"Kosmodock can't read your reminders. Turn it on in System Settings › Privacy & Security › Reminders." = "Kosmodock no puede leer tus recordatorios. Actívalo en Ajustes del Sistema › Privacidad y seguridad › Recordatorios.";
+"Limits show up after your next reply in Codex." = "Los límites aparecen después de tu próxima respuesta en Codex.";
+"Mark as Completed" = "Marcar como completado";
+"No reminders" = "Ningún recordatorio";
+"Open Reminders" = "Abrir Recordatorios";
+"Open Reminders Settings" = "Abrir ajustes de Recordatorios";
+"Read from Codex's session files on this Mac. Tokens include cached input." = "Leído de los archivos de sesión de Codex en este Mac. Los tokens incluyen la entrada en caché.";
+"Reads Codex's session files in ~/.codex on this Mac. The plan limits update after each reply in Codex." = "Lee los archivos de sesión de Codex en ~/.codex en este Mac. Los límites del plan se actualizan después de cada respuesta en Codex.";
+"Reminders" = "Recordatorios";
+"Reminders access" = "Acceso a Recordatorios";
+"Shows your incomplete reminders from every list. Kosmodock changes one only when you click its circle to complete it." = "Muestra tus recordatorios pendientes de todas las listas. Kosmodock solo cambia uno cuando haces clic en su círculo para completarlo.";
+"This build can't ask for reminders access." = "Esta compilación no puede pedir acceso a los recordatorios.";

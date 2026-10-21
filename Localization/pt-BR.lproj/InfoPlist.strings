@@ -4,3 +4,5 @@
 "NSAppleEventsUsageDescription" = "A Kosmodock controla o Música e o Spotify só para o widget Tocando agora: ela lê a faixa atual e toca, pausa ou pula.";
 "NSCalendarsFullAccessUsageDescription" = "A Kosmodock lê seus calendários só para o widget Calendário, para mostrar os compromissos de hoje e de amanhã. Ela nunca os altera.";
 "NSCalendarsUsageDescription" = "A Kosmodock lê seus calendários só para o widget Calendário, para mostrar os compromissos de hoje e de amanhã. Ela nunca os altera.";
+"NSRemindersFullAccessUsageDescription" = "A Kosmodock lê seus lembretes só para o widget Lembretes, para mostrar o que está para vencer. Ela só altera um lembrete quando você o marca como concluído ali.";
+"NSRemindersUsageDescription" = "A Kosmodock lê seus lembretes só para o widget Lembretes, para mostrar o que está para vencer. Ela só altera um lembrete quando você o marca como concluído ali.";

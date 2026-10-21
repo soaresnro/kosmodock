@@ -75,6 +75,8 @@ private struct TileContent: View {
         case .nowPlaying: NowPlayingTile(isWide: isWide)
         case .calendar: CalendarTile(isWide: isWide)
         case .github: GitHubTile(isWide: isWide)
+        case .codex: CodexTile(isWide: isWide)
+        case .reminders: RemindersTile(isWide: isWide)
         case .command: CommandTile(tile: tile, isWide: isWide)
         }
     }
@@ -359,6 +361,8 @@ struct TilePopoverView: View {
                 case .nowPlaying: NowPlayingDetails()
                 case .calendar: CalendarDetails()
                 case .github: GitHubDetails()
+                case .codex: CodexDetails()
+                case .reminders: RemindersDetails()
                 case .command: CommandDetails(tile: tile)
                 }
             }
