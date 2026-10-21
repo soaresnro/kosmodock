@@ -487,7 +487,7 @@
 "Window clearance above dock" = "Folga das janelas acima da Dock";
 "Window Tiling" = "Organização de Janelas";
 "Window tiling needs Accessibility access" = "Organizar janelas exige acesso de Acessibilidade";
-"Windows that reach into the dock's band are moved up or shrunk to stop at its top edge, like the native Dock. Turn off to use Intellihide: the dock slides away while a window overlaps it and returns when the pointer touches the bottom edge." = "Janelas que invadem a faixa da Dock sobem ou encolhem até o topo dela, como na Dock nativa. Desligue para usar o Intellihide: a Dock desliza para fora enquanto uma janela a sobrepõe e volta quando o ponteiro toca a borda inferior.";
+"Windows that reach into the dock's band are moved up or shrunk to stop at its top edge, like the native Dock; drag one well past the edge to leave it behind the dock. Turn off to use Intellihide: the dock slides away while a window overlaps it and returns when the pointer touches the bottom edge." = "Janelas que invadem a faixa da Dock sobem ou encolhem até o topo dela, como na Dock nativa; arraste uma bem além da borda para deixá-la atrás da Dock. Desligue para usar o Intellihide: a Dock desliza para fora enquanto uma janela a sobrepõe e volta quando o ponteiro toca a borda inferior.";
 "Working…" = "Processando…";
 "Workspace “%@”" = "Espaço de trabalho “%@”";
 "Workspaces" = "Espaços de Trabalho";
