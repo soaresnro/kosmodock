@@ -830,6 +830,7 @@ private struct AppearanceSettingsView: View {
                 SliderRow(title: L10n.tr("Tiling gap"), value: model.binding(\.theme.tileGap), range: 0...32, step: 1, format: Self.points)
                 SliderRow(title: L10n.tr("Window clearance above dock"), value: model.binding(\.theme.dockClearance), range: 0...24, step: 1, format: Self.points)
                 Toggle("Show group names on capsules", isOn: model.binding(\.theme.showGroupLabels))
+                Toggle("Same width for every group", isOn: model.binding(\.theme.equalGroupWidths))
             }
             Section("Motion") {
                 SliderRow(title: L10n.tr("Stiffness (spring response)"), value: model.binding(\.theme.springResponse), range: 0.12...0.8, format: { String(format: "%.2f s", locale: L10n.locale, $0) })

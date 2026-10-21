@@ -111,7 +111,7 @@ struct MeasuredSizeKey: PreferenceKey {
 
 /// How much detail capsules show; the dock steps down until it fits the screen.
 enum DockDensity: Int, CaseIterable, Sendable {
-    /// Group names, badge text, four mini icons.
+    /// Group names, badge text, three mini icons.
     case regular
     /// Three mini icons stacked above the badge, no names.
     case compact
@@ -120,7 +120,7 @@ enum DockDensity: Int, CaseIterable, Sendable {
 
     var miniIconLimit: Int {
         switch self {
-        case .regular: 4
+        case .regular: 3
         case .compact: 3
         case .minimal: 2
         }
@@ -243,7 +243,7 @@ struct DockBar: View {
                         )
                     }
                 }
-                .layoutValue(key: EqualizesWidthKey.self, value: item.equalizesWidth(expandedGroupID: model.expandedGroupID))
+                .layoutValue(key: EqualizesWidthKey.self, value: model.theme.equalGroupWidths && item.equalizesWidth(expandedGroupID: model.expandedGroupID))
                 .layoutValue(key: FlexibleWidthKey.self, value: item.isFlexibleSpacer)
                 .keyboardFocusRing(item.id)
             }

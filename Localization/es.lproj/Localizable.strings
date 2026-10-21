@@ -400,6 +400,7 @@
 "shippingbox.fill" = "shippingbox.fill";
 "Shortcut" = "Atajo";
 "Show Details" = "Mostrar detalles";
+"Same width for every group" = "Mismo ancho para todos los grupos";
 "Show group names on capsules" = "Mostrar los nombres de los grupos en las cápsulas";
 "Show in Finder" = "Mostrar en el Finder";
 "Show menu bar icon" = "Mostrar el icono en la barra de menús";

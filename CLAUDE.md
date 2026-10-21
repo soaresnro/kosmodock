@@ -66,7 +66,7 @@ Git workflow:
 **Windowing.**
 - `FloatingPanel` is a borderless `.nonactivatingPanel`. `isFloatingPanel` resets `level`, so it is set first; `constrainFrameRect` is overridden so Intellihide can slide the dock off-screen.
 - Panels are sized from measured SwiftUI content via preference keys (`MeasuredSizeKey`, `CapsuleFramesKey`): grow immediately, shrink only after the spring settles.
-- `DockRootView` uses `ViewThatFits` with a fixed, screen-derived proposal (`model.dockMaxWidth`), stepping down `DockDensity` (regular → compact → minimal → scrolling). The `CapsuleRow` layout gives collapsed capsules the widest one's width, capped so the row still fits the screen.
+- `DockRootView` uses `ViewThatFits` with a fixed, screen-derived proposal (`model.dockMaxWidth`), stepping down `DockDensity` (regular → compact → minimal → scrolling). Each collapsed capsule takes its own width and shows at most three mini icons plus a "+N" count. With `theme.equalGroupWidths` the `CapsuleRow` layout gives them the widest one's width instead, capped so the row still fits the screen.
   - It's a `Layout` on purpose: `ViewThatFits` also measures candidates it doesn't show, and a width kept in `@State` and fed back through a preference goes stale in those, which left the dock stuck at a sparser density.
 - matchedGeometry ids include the density, because every `ViewThatFits` candidate stays in the view graph.
 
@@ -174,4 +174,4 @@ Git workflow:
 - Custom components (`BentoCard`, `IconButton`, `StatLine`, `SliderRow`) take already-localized `String`s.
 - A new key must be added to all three files; `check_localizations.py` and `LocalizationTests` enforce key parity and matching format specifiers.
 - Text Kosmodock writes into `config.json` itself (default labels, a default command's fallback output) is saved in English as an `L10n.configKey("…")` constant and shown through `L10n.configText(_:)`. That recognizes the text in any language, so an old "Bateria" still follows the interface language, and leaves anything the user typed as is.
-- Badge texts that contain numbers come with a `reserve` of their widest variants (`WidgetBadge.usage`, `.fraction`, …), and `BadgeView` reserves that width. Otherwise one reading gaining a digit resizes every capsule, and with them the dock. New numeric badges must do the same; `BadgeWidthTests` measures it.
+- Badge texts that contain numbers come with a `reserve` of their widest variants (`WidgetBadge.usage`, `.fraction`, …), and `BadgeView` reserves that width. Otherwise one reading gaining a digit resizes its capsule, and with it the dock. New numeric badges must do the same; `BadgeWidthTests` measures it.

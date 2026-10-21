@@ -759,6 +759,8 @@ struct ThemeConfig: Codable, Equatable, Sendable {
     var accentHex: String = "#8B7CFF"
     var appearance: AppearanceMode = .system
     var showGroupLabels: Bool = true
+    /// Every collapsed group takes the widest one's width, instead of its own.
+    var equalGroupWidths: Bool = false
     var hoverEffect: HoverEffect = .scale
     var launchAnimation: LaunchAnimation = .bounce
     var indicatorStyle: IndicatorStyle = .dot
@@ -1024,6 +1026,7 @@ extension ThemeConfig {
         accentHex = try c.decode(.accentHex, or: d.accentHex)
         appearance = try c.decode(.appearance, or: d.appearance)
         showGroupLabels = try c.decode(.showGroupLabels, or: d.showGroupLabels)
+        equalGroupWidths = try c.decode(.equalGroupWidths, or: d.equalGroupWidths)
         hoverEffect = try c.decode(.hoverEffect, or: d.hoverEffect)
         launchAnimation = try c.decode(.launchAnimation, or: d.launchAnimation)
         indicatorStyle = try c.decode(.indicatorStyle, or: d.indicatorStyle)

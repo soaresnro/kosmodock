@@ -263,7 +263,6 @@ struct BadgeView: View {
             .font(.system(size: 10, weight: .medium, design: .rounded))
             .monospacedDigit()
             .lineLimit(1)
-            .frame(minWidth: 72, alignment: .leading)
         }
         .foregroundStyle(.secondary)
     }
