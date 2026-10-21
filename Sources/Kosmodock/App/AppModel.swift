@@ -42,6 +42,8 @@ final class AppModel {
     let nowPlaying = NowPlayingService()
     let calendar = CalendarService()
     let github = GitHubService()
+    let codex = CodexUsageService()
+    let reminders = RemindersService()
     let windows: WindowManagerService
     let systemDock: SystemDockManager
     let axHub: AXObserverHub
@@ -104,7 +106,7 @@ final class AppModel {
     func stop() {
         telemetry.stop()
         containers.setEnabled(false)
-        for service in [claude.setEnabled, nowPlaying.setEnabled, calendar.setEnabled, github.setEnabled] as [(Bool) -> Void] {
+        for service in [claude.setEnabled, nowPlaying.setEnabled, calendar.setEnabled, github.setEnabled, codex.setEnabled, reminders.setEnabled] as [(Bool) -> Void] {
             service(false)
         }
         axHub.stop()
@@ -378,6 +380,8 @@ final class AppModel {
             case .claudeCode: Task { await claude.refresh() }
             case .nowPlaying: Task { await nowPlaying.refresh() }
             case .github: Task { await github.refresh() }
+            case .codex: Task { await codex.refresh() }
+            case .reminders: reminders.refresh()
             default: break
             }
             return
@@ -641,6 +645,8 @@ final class AppModel {
         nowPlaying.setEnabled(kinds.contains(.nowPlaying))
         calendar.setEnabled(kinds.contains(.calendar))
         github.setEnabled(kinds.contains(.github))
+        codex.setEnabled(kinds.contains(.codex))
+        reminders.setEnabled(kinds.contains(.reminders))
     }
 
     private func configDidChange(from old: DockConfig, to new: DockConfig) {

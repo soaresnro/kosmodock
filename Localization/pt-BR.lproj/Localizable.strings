@@ -452,3 +452,21 @@
 "Restore the backup from %@?" = "Restaurar o backup de %@?";
 "Restore…" = "Restaurar…";
 "Your current config.json is backed up first, so you can go back to it." = "Antes é feito um backup do seu config.json atual, para você poder voltar a ele.";
+
+/* App widget additions */
+"%lld more in Reminders" = "Mais %lld no Lembretes";
+"Allow Reminders Access" = "Permitir Acesso aos Lembretes";
+"Codex hasn't run on this Mac" = "O Codex ainda não rodou neste Mac";
+"Its usage shows up here after your first session in Codex, read from ~/.codex." = "O uso aparece aqui depois da sua primeira sessão no Codex, lido de ~/.codex.";
+"Kosmodock can't read your reminders. Turn it on in System Settings › Privacy & Security › Reminders." = "A Kosmodock não consegue ler seus lembretes. Ative em Ajustes do Sistema › Privacidade e Segurança › Lembretes.";
+"Limits show up after your next reply in Codex." = "Os limites aparecem depois da sua próxima resposta no Codex.";
+"Mark as Completed" = "Marcar como Concluído";
+"No reminders" = "Nenhum lembrete";
+"Open Reminders" = "Abrir Lembretes";
+"Open Reminders Settings" = "Abrir Ajustes de Lembretes";
+"Read from Codex's session files on this Mac. Tokens include cached input." = "Lido dos arquivos de sessão do Codex neste Mac. Os tokens incluem a entrada em cache.";
+"Reads Codex's session files in ~/.codex on this Mac. The plan limits update after each reply in Codex." = "Lê os arquivos de sessão do Codex em ~/.codex neste Mac. Os limites do plano são atualizados depois de cada resposta no Codex.";
+"Reminders" = "Lembretes";
+"Reminders access" = "Acesso aos Lembretes";
+"Shows your incomplete reminders from every list. Kosmodock changes one only when you click its circle to complete it." = "Mostra seus lembretes não concluídos de todas as listas. A Kosmodock só altera um lembrete quando você clica no círculo dele para concluí-lo.";
+"This build can't ask for reminders access." = "Este build não pode pedir acesso aos lembretes.";

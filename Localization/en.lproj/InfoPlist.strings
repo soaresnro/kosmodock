@@ -4,3 +4,5 @@
 "NSAppleEventsUsageDescription" = "Kosmodock controls Music and Spotify only for the Now Playing widget: it reads the current track and plays, pauses or skips.";
 "NSCalendarsFullAccessUsageDescription" = "Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.";
 "NSCalendarsUsageDescription" = "Kosmodock reads your calendars only for the Calendar widget, to show today's and tomorrow's events. It never changes them.";
+"NSRemindersFullAccessUsageDescription" = "Kosmodock reads your reminders only for the Reminders widget, to show what's due. It changes one only when you mark it as completed there.";
+"NSRemindersUsageDescription" = "Kosmodock reads your reminders only for the Reminders widget, to show what's due. It changes one only when you mark it as completed there.";

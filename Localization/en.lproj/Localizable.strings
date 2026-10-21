@@ -452,3 +452,21 @@
 "Restore the backup from %@?" = "Restore the backup from %@?";
 "Restore…" = "Restore…";
 "Your current config.json is backed up first, so you can go back to it." = "Your current config.json is backed up first, so you can go back to it.";
+
+/* App widget additions */
+"%lld more in Reminders" = "%lld more in Reminders";
+"Allow Reminders Access" = "Allow Reminders Access";
+"Codex hasn't run on this Mac" = "Codex hasn't run on this Mac";
+"Its usage shows up here after your first session in Codex, read from ~/.codex." = "Its usage shows up here after your first session in Codex, read from ~/.codex.";
+"Kosmodock can't read your reminders. Turn it on in System Settings › Privacy & Security › Reminders." = "Kosmodock can't read your reminders. Turn it on in System Settings › Privacy & Security › Reminders.";
+"Limits show up after your next reply in Codex." = "Limits show up after your next reply in Codex.";
+"Mark as Completed" = "Mark as Completed";
+"No reminders" = "No reminders";
+"Open Reminders" = "Open Reminders";
+"Open Reminders Settings" = "Open Reminders Settings";
+"Read from Codex's session files on this Mac. Tokens include cached input." = "Read from Codex's session files on this Mac. Tokens include cached input.";
+"Reads Codex's session files in ~/.codex on this Mac. The plan limits update after each reply in Codex." = "Reads Codex's session files in ~/.codex on this Mac. The plan limits update after each reply in Codex.";
+"Reminders" = "Reminders";
+"Reminders access" = "Reminders access";
+"Shows your incomplete reminders from every list. Kosmodock changes one only when you click its circle to complete it." = "Shows your incomplete reminders from every list. Kosmodock changes one only when you click its circle to complete it.";
+"This build can't ask for reminders access." = "This build can't ask for reminders access.";
