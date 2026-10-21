@@ -299,10 +299,15 @@ final class MinimizedWindowTracker {
 
 /// Maps bundle identifiers to dock groups.
 enum GroupResolver {
-    /// First group listing the bundle id; otherwise the general group: one
-    /// with id/name "system", else the last group.
-    static func groupID(for bundleID: String, groups: [(id: String, name: String, bundleIDs: Set<String>)]) -> String? {
+    /// First group listing the bundle id; then the app's own icon when it's
+    /// pinned (`pinned` maps bundle ids to item ids); otherwise the general
+    /// group: one with id/name "system", else the last group.
+    static func groupID(
+        for bundleID: String, groups: [(id: String, name: String, bundleIDs: Set<String>)],
+        pinned: [String: String] = [:]
+    ) -> String? {
         if let match = groups.first(where: { $0.bundleIDs.contains(bundleID) }) { return match.id }
+        if let item = pinned[bundleID] { return item }
         if let general = groups.first(where: { $0.id.lowercased() == "system" || $0.name.lowercased() == "system" }) {
             return general.id
         }

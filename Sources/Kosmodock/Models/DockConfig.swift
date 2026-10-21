@@ -442,6 +442,70 @@ struct DockConfig: Codable, Equatable, Sendable {
     var telemetry = TelemetryConfig()
     var groups: [DockGroup] = []
     var tiles: [DockTile] = []
+    /// Apps on the bar on their own, as plain icons.
+    var pinnedApps: [DockApp] = []
+    /// Item ids in bar order (see `barOrder`).
+    var order: [String] = []
+}
+
+extension DockConfig {
+    /// A pinned app's id wherever group ids are used: bar order, frames,
+    /// minimized windows. Group ids are slugs, so they never contain a colon.
+    static func itemID(forPinned app: DockApp) -> String { "app:\(app.id)" }
+    static func itemID(for tile: DockTile) -> String { "tile:\(tile.id)" }
+
+    /// The bar's item ids in order: `order` first, without unknown or repeated
+    /// ids, then whatever it leaves out, as pinned apps, groups, tiles. An
+    /// empty `order` (configs from before it) gives exactly that default.
+    var barOrder: [String] {
+        let defaults = pinnedApps.map(Self.itemID(forPinned:)) + groups.map(\.id) + tiles.map(Self.itemID(for:))
+        let known = Set(defaults)
+        var seen = Set<String>()
+        var result = order.filter { known.contains($0) && seen.insert($0).inserted }
+        result += defaults.filter { !seen.contains($0) }
+        return result
+    }
+
+    /// Fixes the current bar order in `order`, so an item added afterwards
+    /// lands at the end instead of in its default place.
+    mutating func settleOrder() {
+        order = barOrder
+    }
+
+    mutating func moveBarItems(fromOffsets source: IndexSet, toOffset destination: Int) {
+        order = barOrder.moved(fromOffsets: source, toOffset: destination)
+    }
+
+    mutating func moveBarItem(_ id: String, by offset: Int) {
+        var ids = barOrder
+        guard let index = ids.firstIndex(of: id) else { return }
+        let target = min(max(0, index + offset), ids.count - 1)
+        guard target != index else { return }
+        ids.swapAt(index, target)
+        order = ids
+    }
+
+    /// Reorders groups among the places groups take on the bar, so moving one
+    /// in the sidebar leaves pinned apps and tiles where they are.
+    mutating func moveGroups(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let groupIDs = Set(groups.map(\.id))
+        let ids = barOrder
+        var moved = ids.filter(groupIDs.contains).moved(fromOffsets: source, toOffset: destination).makeIterator()
+        order = ids.map { groupIDs.contains($0) ? (moved.next() ?? $0) : $0 }
+        let position = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element, $0.offset) })
+        groups.sort { (position[$0.id] ?? 0) < (position[$1.id] ?? 0) }
+    }
+}
+
+extension Array {
+    /// SwiftUI's `move(fromOffsets:toOffset:)`, for the model, which doesn't import SwiftUI.
+    func moved(fromOffsets source: IndexSet, toOffset destination: Int) -> [Element] {
+        let moving = source.filter(indices.contains).map { self[$0] }
+        var rest = enumerated().filter { !source.contains($0.offset) }.map(\.element)
+        let insertion = destination - source.filter { $0 < destination }.count
+        rest.insert(contentsOf: moving, at: Swift.max(0, Swift.min(insertion, rest.count)))
+        return rest
+    }
 }
 
 struct ThemeConfig: Codable, Equatable, Sendable {
@@ -573,6 +637,9 @@ extension DockConfig {
         telemetry = try c.decode(.telemetry, or: d.telemetry)
         groups = DockConfig.normalizedIDs(try c.decode(.groups, or: []))
         tiles = DockConfig.normalizedTileIDs(try c.decode(.tiles, or: []))
+        var pinnedIDs = Set<String>()
+        pinnedApps = try c.decode(.pinnedApps, or: [DockApp]()).filter { pinnedIDs.insert($0.id).inserted }
+        order = try c.decode(.order, or: [])
     }
 
     /// Unique tile ids, derived from the kind when missing.

@@ -20,7 +20,7 @@ struct TileView: View {
         let isWide = tile.width == .wide && !isSquare
         let radius = theme.capsuleRadius
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        let isHighlighted = model.popoverItemID == AppModel.itemID(for: tile)
+        let isHighlighted = model.popoverItemID == DockConfig.itemID(for: tile)
         TileContent(tile: tile, isWide: isWide)
             .padding(.horizontal, isWide ? 9 : 3)
             .frame(width: isWide ? (unit * 2.6).rounded() : unit)
@@ -58,17 +58,6 @@ extension DockTile {
     var title: String {
         if kind == .command, let label, !label.isBlank { return L10n.configText(label) }
         return kind.title
-    }
-}
-
-/// Thin line between the group capsules and the tiles.
-struct TileDivider: View {
-    @Environment(AppModel.self) private var model
-
-    var body: some View {
-        Capsule()
-            .fill(Color.primary.opacity(0.18))
-            .frame(width: 1, height: TileView.unit(iconSize: model.theme.iconSize) * 0.6)
     }
 }
 

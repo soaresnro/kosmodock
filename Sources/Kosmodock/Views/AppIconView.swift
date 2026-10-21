@@ -205,15 +205,28 @@ struct AppIconButton: View {
     }
 }
 
+/// An app's menu, in a group or pinned on its own (`group == nil`).
 struct AppContextMenu: View {
     @Environment(AppModel.self) private var model
     let app: DockApp
-    let group: DockGroup
+    let group: DockGroup?
 
     var body: some View {
         if model.workspace.isRunning(app) {
             Button("Focus") { model.workspace.focus(app) }
-            Button("Minimize to Group") { model.minimizeToGroup(app) }
+            if group == nil {
+                Button("Minimize") { model.minimizeToGroup(app) }
+                let minimized = model.workspace.bundleID(for: app).map { model.minimizedWindows.windows(forBundleID: $0) } ?? []
+                if !minimized.isEmpty {
+                    Menu("Minimized Windows") {
+                        ForEach(minimized) { window in
+                            Button(window.title.isEmpty ? model.workspace.displayName(for: app) : window.title) { model.restore(window) }
+                        }
+                    }
+                }
+            } else {
+                Button("Minimize to Group") { model.minimizeToGroup(app) }
+            }
             Button("Hide") { model.workspace.hide(app) }
             Divider()
             Button("Tile Left") { model.tile(app, region: .left) }
@@ -227,6 +240,73 @@ struct AppContextMenu: View {
         }
         Divider()
         Button("Show in Finder") { model.workspace.revealInFinder(app) }
-        Button(L10n.tr("Remove from %@", group.name)) { model.remove(app, from: group) }
+        if let group {
+            Button(L10n.tr("Remove from %@", group.name)) { model.remove(app, from: group) }
+        } else {
+            Button("Remove from Dock") { model.unpinApp(itemID: DockConfig.itemID(forPinned: app)) }
+        }
+    }
+}
+
+extension BarItem {
+    /// Only collapsed group capsules share a width (`CapsuleRow`).
+    func equalizesWidth(expandedGroupID: String?) -> Bool {
+        if case .group(let group) = self { return group.id != expandedGroupID }
+        return false
+    }
+}
+
+/// An app on the bar on its own, as a plain icon, like in the macOS Dock.
+/// Its windows minimize into it, and clicking it restores the latest one.
+struct PinnedAppView: View {
+    @Environment(AppModel.self) private var model
+    let app: DockApp
+    @ViewState private var isHovering = false
+    @ViewState private var isPulsing = false
+
+    var body: some View {
+        let theme = model.theme
+        let unit = TileView.unit(iconSize: theme.iconSize)
+        let size = unit - 9
+        let itemID = DockConfig.itemID(forPinned: app)
+        let minimized = model.minimizedWindows.count(in: itemID)
+        let hoverScale: CGFloat = switch theme.hoverEffect {
+        case .none: 1
+        case .scale: 1.14
+        case .magnify: 1.3
+        }
+        Button {
+            model.open(app)
+        } label: {
+            AppIconView(app: app, size: size)
+                .overlay(alignment: .bottomTrailing) {
+                    if minimized > 0 {
+                        MinimizedBadge(count: minimized)
+                            .offset(x: 5, y: 3)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .frame(height: unit)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(isHovering ? hoverScale : 1, anchor: .bottom)
+        .scaleEffect(isPulsing ? 1.16 : 1, anchor: .bottom)
+        .animation(model.spring, value: isHovering)
+        .animation(model.spring, value: minimized)
+        .onHover { isHovering = $0 }
+        .onChange(of: model.pulseTokens[itemID] ?? 0) { _, _ in pulse() }
+        .contextMenu { AppContextMenu(app: app, group: nil) }
+        .accessibilityLabel(model.workspace.displayName(for: app))
+        .help(model.workspace.displayName(for: app))
+    }
+
+    /// A window just minimized into this icon.
+    private func pulse() {
+        withAnimation(.spring(response: 0.16, dampingFraction: 0.55)) { isPulsing = true }
+        Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.5)) { isPulsing = false }
+        }
     }
 }

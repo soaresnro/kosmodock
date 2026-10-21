@@ -11,6 +11,22 @@ enum SettingsSection: Hashable {
     case permissions
     case config
     case tiles
+    case dock
+}
+
+/// One item on the bar.
+enum BarItem: Identifiable {
+    case group(DockGroup)
+    case app(DockApp)
+    case tile(DockTile)
+
+    var id: String {
+        switch self {
+        case .group(let group): group.id
+        case .app(let app): DockConfig.itemID(forPinned: app)
+        case .tile(let tile): DockConfig.itemID(for: tile)
+        }
+    }
 }
 
 /// Composition root and UI-facing facade over the services.
@@ -135,12 +151,16 @@ final class AppModel {
         pulseTokens[groupID, default: 0] += 1
     }
 
-    /// Group that owns `bundleID`, falling back to the general group.
+    /// Group (or pinned app) that owns `bundleID`, falling back to the general group.
     func groupID(forBundleID bundleID: String) -> String? {
         let groups = config.groups.map { group in
             (id: group.id, name: group.name, bundleIDs: Set(group.apps.compactMap(workspace.bundleID(for:))))
         }
-        return GroupResolver.groupID(for: bundleID, groups: groups)
+        var pinned: [String: String] = [:]
+        for app in config.pinnedApps {
+            if let id = workspace.bundleID(for: app) { pinned[id] = DockConfig.itemID(forPinned: app) }
+        }
+        return GroupResolver.groupID(for: bundleID, groups: groups, pinned: pinned)
     }
 
     // MARK: Derived state
@@ -161,13 +181,22 @@ final class AppModel {
         config.tiles.first { $0.id == id }
     }
 
-    /// The id a tile goes by where groups' ids are used too: its popover and
-    /// its frame on the bar. Group ids never contain a colon.
-    static func itemID(for tile: DockTile) -> String { "tile:\(tile.id)" }
-
     func tile(itemID: String) -> DockTile? {
-        guard itemID.hasPrefix("tile:") else { return nil }
-        return tile(id: String(itemID.dropFirst(5)))
+        config.tiles.first { DockConfig.itemID(for: $0) == itemID }
+    }
+
+    func pinnedApp(itemID: String) -> DockApp? {
+        config.pinnedApps.first { DockConfig.itemID(forPinned: $0) == itemID }
+    }
+
+    /// Everything on the bar, in order.
+    var barItems: [BarItem] {
+        let config = config
+        var items: [String: BarItem] = [:]
+        for group in config.groups { items[group.id] = .group(group) }
+        for app in config.pinnedApps { items[DockConfig.itemID(forPinned: app)] = .app(app) }
+        for tile in config.tiles { items[DockConfig.itemID(for: tile)] = .tile(tile) }
+        return config.barOrder.compactMap { items[$0] }
     }
 
     func tint(for group: DockGroup) -> Color {
@@ -193,7 +222,7 @@ final class AppModel {
     }
 
     func tap(_ tile: DockTile) {
-        presentPopover?(Self.itemID(for: tile))
+        presentPopover?(DockConfig.itemID(for: tile))
     }
 
     /// Opens the Bento details for a group regardless of its expansion mode.
@@ -489,20 +518,55 @@ final class AppModel {
     func addGroup() -> String {
         let id = "group-\(UUID().uuidString.prefix(6).lowercased())"
         configService.update { config in
+            config.settleOrder()
             config.groups.append(DockGroup(id: id, name: L10n.tr("New Group"), symbol: "square.stack.3d.up.fill", widget: WidgetConfig(type: .cpuRam)))
         }
         return id
     }
 
     func deleteGroup(id: String) {
-        configService.update { $0.groups.removeAll { $0.id == id } }
+        configService.update { config in
+            config.groups.removeAll { $0.id == id }
+            config.order.removeAll { $0 == id }
+        }
         if case .group(id) = settingsSelection {
             settingsSelection = config.groups.first.map { .group($0.id) } ?? .appearance
         }
     }
 
+    /// Offsets are among the groups in bar order (the sidebar's list).
     func moveGroups(fromOffsets source: IndexSet, toOffset destination: Int) {
-        configService.update { $0.groups.move(fromOffsets: source, toOffset: destination) }
+        configService.update { $0.moveGroups(fromOffsets: source, toOffset: destination) }
+    }
+
+    /// Groups in bar order.
+    var orderedGroups: [DockGroup] {
+        barItems.compactMap { if case .group(let group) = $0 { group } else { nil } }
+    }
+
+    func moveBarItems(fromOffsets source: IndexSet, toOffset destination: Int) {
+        configService.update { $0.moveBarItems(fromOffsets: source, toOffset: destination) }
+    }
+
+    func moveBarItem(id: String, by offset: Int) {
+        configService.update { $0.moveBarItem(id, by: offset) }
+    }
+
+    /// Adds an app to the bar as a plain icon, at the end; an app already
+    /// pinned stays where it is.
+    func pinApp(_ app: DockApp) {
+        configService.update { config in
+            guard !config.pinnedApps.contains(where: { $0.id == app.id }) else { return }
+            config.settleOrder()
+            config.pinnedApps.append(app)
+        }
+    }
+
+    func unpinApp(itemID: String) {
+        configService.update { config in
+            config.pinnedApps.removeAll { DockConfig.itemID(forPinned: $0) == itemID }
+            config.order.removeAll { $0 == itemID }
+        }
     }
 
     func tileBinding(id: String) -> Binding<DockTile> {
@@ -530,21 +594,16 @@ final class AppModel {
             tile.interval = 60
         }
         configService.update { config in
+            config.settleOrder()
             config.tiles = DockConfig.normalizedTileIDs(config.tiles + [tile])
         }
         return config.tiles.last?.id ?? tile.id
     }
 
     func deleteTile(id: String) {
-        configService.update { $0.tiles.removeAll { $0.id == id } }
-    }
-
-    func moveTile(id: String, by offset: Int) {
         configService.update { config in
-            guard let index = config.tiles.firstIndex(where: { $0.id == id }) else { return }
-            let target = min(max(0, index + offset), config.tiles.count - 1)
-            guard target != index else { return }
-            config.tiles.swapAt(index, target)
+            config.order.removeAll { $0 == "tile:\(id)" }
+            config.tiles.removeAll { $0.id == id }
         }
     }
 
@@ -573,7 +632,7 @@ final class AppModel {
             expandedGroupID = nil
         }
         if let id = popoverItemID, !new.groups.contains(where: { $0.id == id }),
-           !new.tiles.contains(where: { Self.itemID(for: $0) == id }) {
+           !new.tiles.contains(where: { DockConfig.itemID(for: $0) == id }) {
             dismissPopover?()
         }
     }

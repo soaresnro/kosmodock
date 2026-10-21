@@ -20,6 +20,7 @@
 "Accessibility access required" = "Se necesita acceso de Accesibilidad";
 "Add" = "Añadir";
 "Add a group in Settings" = "Añade un grupo en los Ajustes";
+"Add App" = "Añadir app";
 "Add Application…" = "Añadir aplicación…";
 "Add Command Check" = "Añadir comprobación por comando";
 "Add group" = "Añadir grupo";
@@ -29,6 +30,7 @@
 "Almost white, with a quiet border and short corners." = "Casi blanco, con un borde discreto y esquinas cortas.";
 "Already switched on but still “required”? That entry belongs to an older build. In System Settings select Kosmodock, remove it with −, then click Request Access and switch the new entry on." = "¿Ya está activado pero sigue como “necesario”? Esa entrada pertenece a una compilación anterior. En Ajustes del Sistema, selecciona Kosmodock, elimínalo con −, haz clic en Solicitar acceso y activa la nueva entrada.";
 "API" = "API";
+"App" = "App";
 "Appearance" = "Apariencia";
 "Apply Layout Now" = "Aplicar distribución ahora";
 "Apps" = "Apps";
@@ -50,6 +52,9 @@
 "Charging" = "Cargando";
 "Checking…" = "Comprobando…";
 "Choose apps to add to %@" = "Elige apps para añadir a %@";
+"Choose apps to put on the Dock on their own" = "Elige apps para poner en el Dock fuera de grupos";
+"Choose App…" = "Elegir app…";
+"Click a widget on the Dock to see its details. Arrange it among groups and apps in Settings › Dock." = "Haz clic en un widget del Dock para ver sus detalles. Ordénalo entre grupos y apps en Ajustes › Dock.";
 "Click opens" = "Al hacer clic se abre";
 "Clicking a group opens" = "Al hacer clic en un grupo se abre";
 "Clicking the frontmost app's icon minimizes its window" = "Hacer clic en el icono de la app activa minimiza su ventana";
@@ -98,6 +103,7 @@
 "Dot" = "Punto";
 "Download" = "Descarga";
 "Drag to reorder" = "Arrastra para reordenar";
+"Drag to reorder. Groups, apps and widgets go in any order, as on the Dock from left to right." = "Arrastra para reordenar. Los grupos, apps y widgets van en cualquier orden, como en el Dock, de izquierda a derecha.";
 "Edit Group…" = "Editar grupo…";
 "Edit Widgets…" = "Editar widgets…";
 "Effects" = "Efectos";
@@ -128,6 +134,8 @@
 "Grid 2 × 2" = "Cuadrícula 2 × 2";
 "Group" = "Grupo";
 "Group color" = "Color del grupo";
+"Group · %lld apps" = "Grupo · %lld apps";
+"Group · 1 app" = "Grupo · 1 app";
 "Groups are rebuilt by scanning /Applications. Your current groups and theme are overwritten." = "Los grupos se vuelven a crear a partir de /Applications. Se sobrescribirán tus grupos y tema actuales.";
 "Health Checks" = "Comprobaciones de estado";
 "Health Probes" = "Sondas de estado";
@@ -346,8 +354,8 @@
 "Wi-Fi, Ethernet and Thunderbolt only. VPN tunnels and virtual machine interfaces are left out, so the same traffic isn't counted twice." = "Solo Wi-Fi, Ethernet y Thunderbolt. Los túneles VPN y las interfaces de máquinas virtuales quedan fuera para no contar dos veces el mismo tráfico.";
 "Wide" = "Ancho";
 "Widget" = "Widget";
+"Widget · %@" = "Widget · %@";
 "Widgets" = "Widgets";
-"Widgets sit on the Dock after the groups. Click one to see its details." = "Los widgets van en el Dock después de los grupos. Haz clic en uno para ver sus detalles.";
 "Window clearance above dock" = "Separación de las ventanas sobre el Dock";
 "Window Tiling" = "Organización de ventanas";
 "Window tiling needs Accessibility access" = "Organizar ventanas requiere acceso de Accesibilidad";

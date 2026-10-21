@@ -44,7 +44,7 @@ final class GroupGeometryTracker {
 @MainActor
 @Observable
 final class PopoverState {
-    /// A group's id, or a tile's `AppModel.itemID(for:)`.
+    /// A group's id, or a tile's `DockConfig.itemID(for:)`.
     var itemID: String?
     var isPresented = false
     /// Horizontal anchor (0…1) of the capsule inside the popover, so the
@@ -299,7 +299,15 @@ final class DockController {
     // MARK: Minimize animation
 
     private func playMinimizeAnimation(_ request: MinimizeAnimationRequest) {
-        guard let group = model.group(id: request.groupID) else { return }
+        // Into a group's capsule, or a pinned app's icon.
+        let tintColor: Color
+        if let group = model.group(id: request.groupID) {
+            tintColor = model.tint(for: group)
+        } else if model.pinnedApp(itemID: request.groupID) != nil {
+            tintColor = model.accent
+        } else {
+            return
+        }
         if intellihide.isHidden { intellihide.peek(for: 1.0) }
         let size = dockPanel.frame.size
         let shown = shownOrigin(for: size)
@@ -315,8 +323,8 @@ final class DockController {
             .map { NSWorkspace.shared.icon(forFile: $0.path) }
             ?? NSImage(systemSymbolName: "macwindow", accessibilityDescription: nil)
             ?? NSImage()
-        let tint = NSColor(model.tint(for: group))
-        let groupID = group.id
+        let tint = NSColor(tintColor)
+        let groupID = request.groupID
         let direction = request.direction
 
         animator.play(direction, windowFrame: windowFrame, capsuleFrame: capsule, icon: icon, title: request.title, tint: tint) { [weak self] in

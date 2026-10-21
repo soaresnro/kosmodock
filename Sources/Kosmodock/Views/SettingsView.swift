@@ -27,6 +27,7 @@ struct SettingsView: View {
             } else {
                 ContentUnavailableView("Select a group", systemImage: "square.stack.3d.up")
             }
+        case .dock: DockLayoutSettingsView()
         case .appearance: AppearanceSettingsView()
         case .tiles: TilesSettingsView()
         case .behavior: BehaviorSettingsView()
@@ -45,8 +46,11 @@ private struct SettingsSidebar: View {
 
     var body: some View {
         List(selection: $selection) {
+            Section {
+                Label("Dock", systemImage: "dock.rectangle").tag(SettingsSection.dock)
+            }
             Section("Dock Groups") {
-                ForEach(model.config.groups) { group in
+                ForEach(model.orderedGroups) { group in
                     Label {
                         Text(group.name)
                     } icon: {
@@ -420,6 +424,149 @@ private struct LayoutChooser: View {
     }
 }
 
+// MARK: - Dock
+
+/// The bar as a list: every group, pinned app and widget in order, to drag
+/// into place, and everything that adds to it.
+private struct DockLayoutSettingsView: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        let items = model.barItems
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Button {
+                    model.settingsSelection = .group(model.addGroup())
+                } label: {
+                    Label("New Group", systemImage: "square.stack.3d.up.fill")
+                }
+                Menu {
+                    Button("Choose App…") { chooseApps() }
+                    let running = model.workspace.runningRegularApps()
+                    if !running.isEmpty {
+                        Divider()
+                        ForEach(running) { app in
+                            Button(app.name) { model.pinApp(app) }
+                        }
+                    }
+                } label: {
+                    Label("Add App", systemImage: "app.badge")
+                }
+                .fixedSize()
+                Menu {
+                    ForEach(TileKind.allCases) { kind in
+                        Button {
+                            model.addTile(kind)
+                        } label: {
+                            Label(kind.title, systemImage: kind.symbol)
+                        }
+                    }
+                } label: {
+                    Label("Add Widget", systemImage: "square.grid.2x2")
+                }
+                .fixedSize()
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            List {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    DockItemRow(item: item, isFirst: index == 0, isLast: index == items.count - 1)
+                }
+                .onMove { model.moveBarItems(fromOffsets: $0, toOffset: $1) }
+            }
+            .listStyle(.inset(alternatesRowBackgrounds: true))
+            Text("Drag to reorder. Groups, apps and widgets go in any order, as on the Dock from left to right.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+        }
+        .navigationTitle("Dock")
+    }
+
+    private func chooseApps() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.prompt = L10n.tr("Add")
+        panel.message = L10n.tr("Choose apps to put on the Dock on their own")
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls { model.pinApp(DockApp(url: url)) }
+    }
+}
+
+private struct DockItemRow: View {
+    @Environment(AppModel.self) private var model
+    let item: BarItem
+    let isFirst: Bool
+    let isLast: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            icon.frame(width: 26, height: 26)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).lineLimit(1)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            Spacer()
+            Group {
+                Button { model.moveBarItem(id: item.id, by: -1) } label: { Label("Move up", systemImage: "chevron.up") }
+                    .disabled(isFirst)
+                    .help("Move up")
+                Button { model.moveBarItem(id: item.id, by: 1) } label: { Label("Move down", systemImage: "chevron.down") }
+                    .disabled(isLast)
+                    .help("Move down")
+                switch item {
+                case .group(let group):
+                    Button { model.settingsSelection = .group(group.id) } label: { Label("Edit Group…", systemImage: "slider.horizontal.3") }
+                        .help("Edit Group…")
+                case .app:
+                    Button(role: .destructive) { model.unpinApp(itemID: item.id) } label: { Label("Remove from Dock", systemImage: "trash") }
+                        .help("Remove from Dock")
+                case .tile(let tile):
+                    Button { model.settingsSelection = .tiles } label: { Label("Edit Widgets…", systemImage: "slider.horizontal.3") }
+                        .help("Edit Widgets…")
+                    Button(role: .destructive) { model.deleteTile(id: tile.id) } label: { Label("Remove from Dock", systemImage: "trash") }
+                        .help("Remove from Dock")
+                }
+            }
+            .labelStyle(.iconOnly)
+            .buttonStyle(.borderless)
+        }
+        .padding(.vertical, 2)
+    }
+
+    @ViewBuilder private var icon: some View {
+        switch item {
+        case .group(let group): GroupGlyph(symbol: group.symbol, tint: model.tint(for: group), size: 24)
+        case .app(let app): AppIconView(app: app, size: 26, showsIndicator: false)
+        case .tile(let tile): GroupGlyph(symbol: tile.kind.symbol, tint: model.accent, size: 24)
+        }
+    }
+
+    private var title: String {
+        switch item {
+        case .group(let group): group.name
+        case .app(let app): model.workspace.displayName(for: app)
+        case .tile(let tile): tile.title
+        }
+    }
+
+    private var subtitle: String {
+        switch item {
+        case .group(let group): group.apps.count == 1 ? L10n.tr("Group · 1 app") : L10n.tr("Group · %lld apps", group.apps.count)
+        case .app: L10n.tr("App")
+        case .tile(let tile): L10n.tr("Widget · %@", tile.width.title)
+        }
+    }
+}
+
 // MARK: - Widgets
 
 /// The tiles on the bar, in order, each with its size and options.
@@ -430,7 +577,7 @@ private struct TilesSettingsView: View {
         let tiles = model.config.tiles
         Form {
             Section {
-                Text("Widgets sit on the Dock after the groups. Click one to see its details.")
+                Text("Click a widget on the Dock to see its details. Arrange it among groups and apps in Settings › Dock.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Menu {
@@ -446,8 +593,8 @@ private struct TilesSettingsView: View {
                 }
                 .fixedSize()
             }
-            ForEach(Array(tiles.enumerated()), id: \.element.id) { index, tile in
-                TileEditorSection(tileID: tile.id, isFirst: index == 0, isLast: index == tiles.count - 1)
+            ForEach(tiles) { tile in
+                TileEditorSection(tileID: tile.id)
             }
         }
         .formStyle(.grouped)
@@ -458,8 +605,6 @@ private struct TilesSettingsView: View {
 private struct TileEditorSection: View {
     @Environment(AppModel.self) private var model
     let tileID: String
-    let isFirst: Bool
-    let isLast: Bool
 
     private var tile: Binding<DockTile> { model.tileBinding(id: tileID) }
 
@@ -490,12 +635,6 @@ private struct TileEditorSection: View {
             HStack {
                 Label(current.title, systemImage: current.kind.symbol)
                 Spacer()
-                Button { model.moveTile(id: tileID, by: -1) } label: { Label("Move up", systemImage: "chevron.up") }
-                    .disabled(isFirst)
-                    .help("Move up")
-                Button { model.moveTile(id: tileID, by: 1) } label: { Label("Move down", systemImage: "chevron.down") }
-                    .disabled(isLast)
-                    .help("Move down")
                 Button(role: .destructive) { model.deleteTile(id: tileID) } label: { Label("Remove from Dock", systemImage: "trash") }
                     .help("Remove from Dock")
             }
