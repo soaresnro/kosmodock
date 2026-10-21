@@ -179,7 +179,8 @@ final class TimeWidgetTests: XCTestCase {
 
     func testCountdownBeforeAndAfterItsTarget() {
         let calendar = Self.calendar()
-        let target = t0.addingTimeInterval(2 * 86_400 + 5 * 3600 + 30 * 60 + 20)
+        // 2 d 5 h 30 min 20 s. A sum of literals here takes the type checker minutes.
+        let target = t0.addingTimeInterval(192_620)
         let before = CountdownReading.at(t0, target: target, countsUp: true, calendar: calendar)
         XCTAssertEqual(before, CountdownReading(isPast: false, days: 2, hours: 5, minutes: 31), "minutes round up while counting down")
         XCTAssertEqual(before.text(locale: Locale(identifier: "en_US"), calendar: calendar), "2d 5h")
@@ -192,7 +193,7 @@ final class TimeWidgetTests: XCTestCase {
         let exactly = CountdownReading.at(target.addingTimeInterval(-3600), target: target, countsUp: false, calendar: calendar)
         XCTAssertEqual(exactly, CountdownReading(isPast: false, days: 0, hours: 1, minutes: 0))
 
-        let later = target.addingTimeInterval(3 * 86_400 + 4 * 3600 + 59)
+        let later = target.addingTimeInterval(273_659) // 3 d 4 h 0 min 59 s
         XCTAssertEqual(CountdownReading.at(later, target: target, countsUp: true, calendar: calendar),
                        CountdownReading(isPast: true, days: 3, hours: 4, minutes: 0), "after it, the time since")
         let stopped = CountdownReading.at(later, target: target, countsUp: false, calendar: calendar)
@@ -475,7 +476,7 @@ final class TimeWidgetTests: XCTestCase {
         let tokyo = try XCTUnwrap(TimeZone(identifier: "Asia/Tokyo"))
         let kolkata = try XCTUnwrap(TimeZone(identifier: "Asia/Kolkata"))
         XCTAssertEqual(TimeZoneCatalog.offset(of: tokyo, from: utc, at: t0), 9 * 3600)
-        XCTAssertEqual(TimeZoneCatalog.offset(of: utc, from: kolkata, at: t0), -(5 * 3600 + 30 * 60))
+        XCTAssertEqual(TimeZoneCatalog.offset(of: utc, from: kolkata, at: t0), -19_800) // 5 h 30 min
     }
 
     func testAnalogHandsPointAtTheTimeInTheirZone() throws {
