@@ -109,6 +109,7 @@ final class AppModel {
         }
         axHub.stop()
         dockBadges.setActive(false)
+        configService.backUp()
     }
 
     private func wireWindowServices() {

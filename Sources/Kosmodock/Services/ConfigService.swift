@@ -2,7 +2,7 @@ import AppKit
 import Observation
 
 /// Owns `~/.config/kosmodock/config.json`: first-launch generation, debounced
-/// saving of in-app edits, and live hot-reload of external edits.
+/// saving of in-app edits, live hot-reload of external edits, and backups.
 @MainActor
 @Observable
 final class ConfigService {
@@ -12,8 +12,11 @@ final class ConfigService {
     /// Human-readable parse/IO error; the last valid config stays active.
     private(set) var lastError: String?
     private(set) var lastLoadedAt: Date?
+    /// Copies of config.json in `backups/` next to it, newest first.
+    private(set) var backups: [ConfigBackup] = []
 
     let fileURL: URL
+    let backupStore: ConfigBackupStore
 
     @ObservationIgnored private var observers: [Observer] = []
     @ObservationIgnored private var watcher: FileWatcher?
@@ -34,6 +37,7 @@ final class ConfigService {
 
     init(fileURL: URL = ConfigService.defaultFileURL) {
         self.fileURL = fileURL
+        backupStore = ConfigBackupStore(directory: fileURL.deletingLastPathComponent().appendingPathComponent("backups"))
     }
 
     func bootstrap() {
@@ -77,6 +81,7 @@ final class ConfigService {
 
     func saveNow() {
         pendingSave?.cancel()
+        pendingSave = nil
         writeToDisk()
     }
 
@@ -113,6 +118,51 @@ final class ConfigService {
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])
     }
 
+    // MARK: Backups
+
+    /// Copies config.json as it is on disk into `backups/`, unless it equals
+    /// the newest copy. An in-app edit still waiting to be saved is saved first.
+    /// Backups live in another file, so the watcher never sees these writes.
+    @discardableResult
+    func backUp() -> Bool {
+        if pendingSave != nil { saveNow() }
+        defer { refreshBackups() }
+        do {
+            try backupStore.save(Data(contentsOf: fileURL))
+            return true
+        } catch {
+            lastError = L10n.tr("Could not back up config.json: %@", error.localizedDescription)
+            return false
+        }
+    }
+
+    /// Replaces the config with `backup`'s, after backing up the current one.
+    /// A backup that doesn't decode changes nothing and is reported in `lastError`.
+    @discardableResult
+    func restore(_ backup: ConfigBackup) -> Bool {
+        let restored: DockConfig
+        do {
+            restored = try JSONDecoder().decode(DockConfig.self, from: Data(contentsOf: backup.url))
+        } catch {
+            lastError = L10n.tr("Could not restore %@: %@", backup.url.lastPathComponent, Self.describe(error))
+            return false
+        }
+        guard backUp() else { return false }
+        apply(restored)
+        // Records the written bytes, so the watcher ignores this save.
+        saveNow()
+        return lastError == nil
+    }
+
+    func refreshBackups() {
+        let current = backupStore.list()
+        if current != backups { backups = current }
+    }
+
+    func revealInFinder(_ backup: ConfigBackup) {
+        NSWorkspace.shared.activateFileViewerSelecting([backup.url])
+    }
+
     // MARK: Private
 
     private func apply(_ next: DockConfig) {
@@ -126,6 +176,7 @@ final class ConfigService {
         pendingSave = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
+            self?.pendingSave = nil
             self?.writeToDisk()
         }
     }

@@ -216,7 +216,19 @@ struct SurfaceBackground: View {
             // The original glass tint, kept as it was.
             return AnyShapeStyle(Color(nsColor: .windowBackgroundColor).opacity(surface.fillOpacity * 0.85))
         }
-        return AnyShapeStyle(LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom).opacity(surface.fillOpacity))
+        let points = surface.fillPoints
+        return AnyShapeStyle(LinearGradient(colors: [top, bottom], startPoint: points.start, endPoint: points.end).opacity(surface.fillOpacity))
+    }
+}
+
+extension DockSurface {
+    /// Ends of the fill gradient: top → bottom turned clockwise by `fillAngle`,
+    /// reaching the shape's edges (corner to corner at 45°).
+    var fillPoints: (start: UnitPoint, end: UnitPoint) {
+        let radians = fillAngle * .pi / 180
+        let dx = -sin(radians), dy = cos(radians)
+        let half = 2 * max(abs(dx), abs(dy))
+        return (UnitPoint(x: 0.5 - dx / half, y: 0.5 - dy / half), UnitPoint(x: 0.5 + dx / half, y: 0.5 + dy / half))
     }
 }
 

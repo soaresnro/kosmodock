@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// Real app icon, dimmed when hidden, with the running indicator under it,
-/// its notification badge, and the launch animation while the app starts.
+/// its notification badge, the launch animation while the app starts and,
+/// on the dock, a reflection.
 struct AppIconView: View {
     @Environment(AppModel.self) private var model
     let app: DockApp
@@ -10,18 +11,27 @@ struct AppIconView: View {
     /// The group's tint, for `IndicatorColor.group`.
     var tint: Color?
     var badgeStyle: NotificationBadge.Style = .full
+    /// Draws the style's reflection (`DockSurface.reflection`). Only dock icons
+    /// do: elsewhere text sits right under the icon.
+    var reflects = false
 
     var body: some View {
         let state = model.workspace.state(for: app)
         let theme = model.theme
-        Image(nsImage: model.workspace.icon(for: app))
-            .resizable()
-            .interpolation(.high)
-            .aspectRatio(contentMode: .fit)
-            .frame(width: size, height: size)
-            .opacity(state?.isHidden == true ? 0.55 : 1)
+        let image = model.workspace.icon(for: app)
+        let opacity = state?.isHidden == true ? 0.55 : 1
+        icon(image)
+            .opacity(opacity)
             .modifier(NotificationBadge(label: badgeStyle == .hidden ? nil : model.notificationBadge(for: app), iconSize: size, style: badgeStyle))
             .modifier(LaunchMotion(animation: model.workspace.isLaunching(app) ? theme.launchAnimation : .none, size: size))
+            .background(alignment: .bottom) {
+                // Behind the icon and outside its frame: the layout never changes,
+                // and the indicator, an overlay, stays on top.
+                if reflects, theme.surface.reflection {
+                    Reflection(height: size, margin: size * Self.artworkMargin) { icon(image) }
+                        .opacity(opacity)
+                }
+            }
             .overlay(alignment: .bottom) {
                 if showsIndicator, let state {
                     RunningIndicator(style: theme.indicatorStyle, color: indicatorColor(isActive: state.isActive), iconSize: size)
@@ -29,11 +39,53 @@ struct AppIconView: View {
             }
     }
 
+    /// App icons keep a transparent margin around their artwork (about 10% on
+    /// the macOS icon grid), so the mirror line sits that far above the frame.
+    private static let artworkMargin: CGFloat = 0.09
+
+    private func icon(_ image: NSImage) -> some View {
+        Image(nsImage: image)
+            .resizable()
+            .interpolation(.high)
+            .aspectRatio(contentMode: .fit)
+            .frame(width: size, height: size)
+    }
+
     private func indicatorColor(isActive: Bool) -> Color {
         switch model.theme.indicatorColor {
         case .accent: isActive ? model.accent : Color.primary.opacity(0.8)
         case .group: (tint ?? model.accent).opacity(isActive ? 1 : 0.7)
         }
+    }
+}
+
+/// A faded, upside-down copy of `content` for just below it: put it in a
+/// bottom-aligned `background`. `margin` is the content's transparent edge;
+/// the copy starts twice that above the bottom, so it mirrors the artwork's
+/// edge rather than the frame's, and that part hides behind the content.
+struct Reflection<Content: View>: View {
+    var height: CGFloat
+    var margin: CGFloat = 0
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        let length = height * 0.38
+        let span = length + margin * 2
+        content
+            .frame(height: height)
+            .scaleEffect(x: 1, y: -1)
+            .frame(height: span, alignment: .top)
+            .clipped()
+            .mask {
+                LinearGradient(
+                    stops: [.init(color: .black, location: margin * 2 / span), .init(color: .clear, location: 1)],
+                    startPoint: .top, endPoint: .bottom
+                )
+            }
+            .opacity(0.3)
+            .offset(y: length)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
@@ -194,7 +246,7 @@ struct AppIconButton: View {
         Button {
             model.open(app)
         } label: {
-            AppIconView(app: app, size: size, tint: model.tint(for: group))
+            AppIconView(app: app, size: size, tint: model.tint(for: group), reflects: true)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -280,7 +332,7 @@ struct PinnedAppView: View {
         Button {
             model.open(app)
         } label: {
-            AppIconView(app: app, size: size)
+            AppIconView(app: app, size: size, reflects: true)
                 .overlay(alignment: .bottomTrailing) {
                     if minimized > 0 {
                         MinimizedBadge(count: minimized)

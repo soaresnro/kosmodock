@@ -439,3 +439,16 @@
 "Notifications" = "Notifications";
 "Show notification badges" = "Show notification badges";
 "Unread counts and dots on app icons, read from the macOS Dock, which keeps running while hidden. Needs Accessibility access." = "Unread counts and dots on app icons, read from the macOS Dock, which keeps running while hidden. Needs Accessibility access.";
+
+/* Theme & backups */
+"Backups" = "Backups";
+"Could not back up config.json: %@" = "Could not back up config.json: %@";
+"Could not restore %@: %@" = "Could not restore %@: %@";
+"Gradient angle" = "Gradient angle";
+"Kosmodock copies config.json into the backups folder next to it at every launch and quit, unless nothing changed. The %lld newest copies are kept." = "Kosmodock copies config.json into the backups folder next to it at every launch and quit, unless nothing changed. The %lld newest copies are kept.";
+"No backups yet." = "No backups yet.";
+"Reflections under icons" = "Reflections under icons";
+"Restore" = "Restore";
+"Restore the backup from %@?" = "Restore the backup from %@?";
+"Restore…" = "Restore…";
+"Your current config.json is backed up first, so you can go back to it." = "Your current config.json is backed up first, so you can go back to it.";
